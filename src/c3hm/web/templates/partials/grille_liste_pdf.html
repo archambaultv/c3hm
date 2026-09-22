@@ -1,0 +1,12 @@
+{# Grille vierge en affichage « liste », partagée par la grille PDF et la rétroaction. #}
+{% for crit in evaluation.criteria %}
+<section class="fiche">
+    <h2>{{ crit.label }} <span class="weight">{{ crit.weight }} %</span></h2>
+    {% for lvl in evaluation.scale %}
+    {% if crit.descriptors.get(lvl.label) %}
+    <h3 style="background: {{ level_color(lvl) }}">Pour obtenir le niveau « {{ lvl.label }} » <span class="weight">({{ lvl.percentage }} %)</span></h3>
+    <div class="texte">{{ crit.descriptors[lvl.label]|md }}</div>
+    {% endif %}
+    {% endfor %}
+</section>
+{% endfor %}

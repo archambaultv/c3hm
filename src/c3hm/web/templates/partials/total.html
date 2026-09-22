@@ -1,4 +1,4 @@
-<div class="total">
+<div id="total" class="total" {% if oob_total %}hx-swap-oob="true"{% endif %}>
     {% if grade.final is not none %}
     <span class="total-value">{{ grade.final }}</span><span class="muted"> / 100</span>
     {% if notes.has_override() %}

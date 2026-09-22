@@ -47,3 +47,26 @@ def test_dossier_sans_fichiers(tmp_path):
     assert not vide.has_evaluation()
     assert vide.load_students() == []
     assert vide.load_notes("1234567") == Notes()
+
+
+def test_ancien_format_de_notes_se_charge(workspace):
+    workspace.notes_path("1111111").parent.mkdir(parents=True)
+    workspace.notes_path("1111111").write_text(
+        "niveaux:\n  Tests: Acquis\ncommentaires:\n  Tests: Bien.\n", encoding="utf-8"
+    )
+    notes = workspace.load_notes("1111111")
+    assert (notes.level_for("Tests"), notes.comment_for("Tests")) == ("Acquis", "Bien.")
+
+
+def test_fichier_de_notes_nomme_comme_la_retroaction(workspace):
+    workspace.save_notes("3333333", Notes(levels={"Tests": "Acquis"}))
+    assert workspace.notes_path("3333333").name == "Gagnon_Chloé_3333333.yaml"
+    assert workspace.notes_matricules() == ["3333333"]
+
+    # un fichier à l'ancien nom est lu, puis renommé au prochain enregistrement
+    ancien = workspace.root / "notes" / "1111111.yaml"
+    ancien.write_text("critères:\n  Tests:\n    niveau: Avancé\n", encoding="utf-8")
+    assert workspace.load_notes("1111111").level_for("Tests") == "Avancé"
+    workspace.save_notes("1111111", workspace.load_notes("1111111"))
+    assert not ancien.exists()
+    assert workspace.notes_path("1111111").name == "Tremblay_Alice_1111111.yaml"

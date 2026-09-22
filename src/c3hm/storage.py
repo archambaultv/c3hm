@@ -4,7 +4,8 @@ Accès aux fichiers d'un dossier d'évaluation (« workspace »).
 Un dossier d'évaluation contient :
 - evaluation.yaml : cours, session, évaluation, échelle, critères
 - etudiants.yaml : liste des étudiants (matricule, prénom, nom, équipe)
-- notes/<matricule>.yaml : niveaux, commentaires et note ajustée d'un étudiant
+- notes/<Nom>_<Prénom>_<matricule>.yaml : par critère (niveau, commentaire, axe de progression),
+  commentaire général et note ajustée d'un étudiant
 - notes/equipes/<équipe>.yaml : niveaux et commentaires d'une équipe, hérités par ses membres
 """
 
@@ -40,6 +41,18 @@ def dump_yaml(data: Any) -> str:
 
 def load_yaml(text: str) -> Any:
     return yaml.safe_load(text)
+
+
+def safe_filename(student: Student) -> str:
+    """Nom_Prénom_matricule, sans les caractères interdits dans un nom de fichier."""
+    parts = [student.surname, student.firstname, student.matricule]
+    name = "_".join(p.strip() for p in parts if p.strip())
+    return "".join("-" if c in '/\\:*?"<>|' else c for c in name)
+
+
+def _matricule_of(stem: str) -> str:
+    """Le matricule est la dernière partie du nom de fichier (seul, dans l'ancien format)."""
+    return stem.rsplit("_", 1)[-1]
 
 
 class Workspace:
@@ -118,10 +131,25 @@ class Workspace:
         data = [s.to_dict() for s in sort_students(students)]
         self.students_path.write_text(dump_yaml(data), encoding="utf-8")
 
-    # --- notes/<matricule>.yaml ----------------------------------------------
+    # --- notes/<Nom>_<Prénom>_<matricule>.yaml -------------------------------
+
+    def _notes_filename(self, matricule: str) -> str:
+        """Nom attendu d'après etudiants.yaml, comme la rétroaction ; le matricule seul si l'étudiant est inconnu."""
+        try:
+            student = next((s for s in self.load_students() if s.matricule == matricule), None)
+        except WorkspaceError:
+            student = None
+        return f"{safe_filename(student) if student else matricule}.yaml"
+
+    def _existing_notes_path(self, matricule: str) -> Path | None:
+        notes_dir = self.root / self.NOTES_DIR
+        if not notes_dir.is_dir():
+            return None
+        return next((p for p in sorted(notes_dir.glob("*.yaml")) if _matricule_of(p.stem) == matricule), None)
 
     def notes_path(self, matricule: str) -> Path:
-        return self.root / self.NOTES_DIR / f"{matricule}.yaml"
+        """Fichier de notes existant de l'étudiant (quel que soit son nom), sinon celui à créer."""
+        return self._existing_notes_path(matricule) or self.root / self.NOTES_DIR / self._notes_filename(matricule)
 
     def load_notes(self, matricule: str) -> Notes:
         """Charge les notes d'un étudiant ; notes vides si le fichier n'existe pas."""
@@ -137,9 +165,13 @@ class Workspace:
             raise WorkspaceError(f"{path.name} : {e}") from e
 
     def save_notes(self, matricule: str, notes: Notes) -> None:
-        path = self.notes_path(matricule)
+        """Enregistre sous le nom attendu ; un fichier au nom périmé (ancien format, étudiant renommé) est remplacé."""
+        path = self.root / self.NOTES_DIR / self._notes_filename(matricule)
+        old = self._existing_notes_path(matricule)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(dump_yaml(notes.to_dict()), encoding="utf-8")
+        if old is not None and old != path:
+            old.unlink()
 
     # --- notes/equipes/<équipe>.yaml -----------------------------------------
 
@@ -176,17 +208,4 @@ class Workspace:
         notes_dir = self.root / self.NOTES_DIR
         if not notes_dir.is_dir():
             return []
-        return sorted(p.stem for p in notes_dir.glob("*.yaml"))
-
-    def notes_version(self, matricule: str | None = None, team: str | None = None) -> str:
-        """Jeton qui change dès que evaluation.yaml, les notes de l'étudiant ou celles de son équipe changent."""
-        own = _mtime(self.notes_path(matricule)) if matricule else 0
-        team_mtime = _mtime(self.team_notes_path(team)) if team else 0
-        return f"{_mtime(self.evaluation_path)}-{own}-{team_mtime}"
-
-
-def _mtime(path: Path) -> int:
-    try:
-        return path.stat().st_mtime_ns
-    except FileNotFoundError:
-        return 0
+        return sorted(_matricule_of(p.stem) for p in notes_dir.glob("*.yaml"))

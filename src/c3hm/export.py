@@ -26,7 +26,7 @@ from c3hm.model import (
     merge_notes,
     round_half_up,
 )
-from c3hm.storage import Workspace
+from c3hm.storage import Workspace, safe_filename
 
 OUTPUT_DIR = "sortie"
 FEEDBACK_DIR = "retroaction"
@@ -63,12 +63,6 @@ def gather(workspace: Workspace, evaluation: Evaluation) -> list[StudentGrade]:
         effective = merge_notes(team_notes, own) if team_notes is not None else own
         result.append(StudentGrade(student, effective, own, team_notes, compute_grade(evaluation, effective)))
     return result
-
-
-def safe_filename(student: Student) -> str:
-    parts = [student.surname, student.firstname, student.matricule]
-    name = "_".join(p.strip() for p in parts if p.strip())
-    return "".join("-" if c in '/\\:*?"<>|' else c for c in name)
 
 
 # --- Markdown ----------------------------------------------------------------

@@ -1,6 +1,6 @@
 """Exports : tableur Omnivox, rétroaction PDF, grille, nettoyage du dossier."""
 
-from c3hm.export import export_all, export_notes, omnivox_rows, ready_grades, rubric_markdown
+from c3hm.export import export_all, export_notes, feedback_html, gather, omnivox_rows, ready_grades, rubric_markdown
 from c3hm.model import Student
 
 
@@ -41,3 +41,13 @@ def test_grille_en_markdown_selon_laffichage(evaluation):
     texte = rubric_markdown(evaluation)
     assert "## Qualité du code (30 %)" in texte  # sections
     assert "**Acquis (75 %)**" in texte
+
+
+def test_retroaction_liste_suivie_de_la_grille(graded_workspace):
+    evaluation = graded_workspace.load_evaluation()
+    item = gather(graded_workspace, evaluation)[0]
+    assert "Grille d'évaluation" not in feedback_html(evaluation, item)
+
+    evaluation.layout = "liste"
+    html = feedback_html(evaluation, item)
+    assert html.index("Niveau obtenu") < html.index("Grille d'évaluation") < html.index("Pour obtenir le niveau")

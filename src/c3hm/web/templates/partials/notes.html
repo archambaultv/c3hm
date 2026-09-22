@@ -2,19 +2,20 @@
     {% include "partials/grille.html" %}
 
     <fieldset class="comments">
+        {% if evaluation.layout == "liste" %}
+        <legend>Général</legend>
+        {% else %}
         <legend>Commentaires</legend>
         {% for crit in evaluation.criteria %}
         {% set i = loop.index0 %}
-        {% set inherited = team_notes is not none and not own.comment_for(crit.label) and team_notes.comment_for(crit.label) %}
-        <label>
-            <span>{{ crit.label }} <span id="saved-{{ i }}" class="saved-status">{% if inherited %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
-            <textarea rows="2" name="texte"
-                      hx-post="{{ base }}/commentaire"
-                      hx-vals='{{ {"critere": crit.label}|tojson }}'
-                      hx-trigger="input changed delay:800ms"
-                      hx-target="#saved-{{ i }}" hx-swap="innerHTML">{{ notes.comment_for(crit.label) }}</textarea>
-        </label>
+        <div class="crit-comments">
+            <strong>{{ crit.label }}</strong>
+            <div class="fiche-comments">
+                {% include "partials/commentaires_critere.html" %}
+            </div>
+        </div>
         {% endfor %}
+        {% endif %}
         {% set inherited = team_notes is not none and not own.comment.strip() and team_notes.comment.strip() %}
         <label>
             <span><strong>Commentaire général</strong> <span id="saved-global" class="saved-status">{% if inherited %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
@@ -34,5 +35,4 @@
         {% endif %}
     </fieldset>
 
-    {% include "partials/poll.html" %}
 </section>

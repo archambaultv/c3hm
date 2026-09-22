@@ -1,0 +1,14 @@
+{# Commentaire et axe de progression d'un critère ; attend crit et i. #}
+{% for champ, nom, own_text, team_text, text in [
+    ("commentaire", "Commentaire", own.comment_for(crit.label), team_notes.comment_for(crit.label) if team_notes is not none else "", notes.comment_for(crit.label)),
+    ("axe", "Axe de progression", own.progress_for(crit.label), team_notes.progress_for(crit.label) if team_notes is not none else "", notes.progress_for(crit.label)),
+] %}
+<label>
+    <span>{{ nom }} <span id="saved-{{ i }}-{{ champ }}" class="saved-status">{% if not own_text and team_text %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
+    <textarea rows="3" name="texte"
+              hx-post="{{ base }}/commentaire"
+              hx-vals='{{ {"critere": crit.label, "champ": champ}|tojson }}'
+              hx-trigger="input changed delay:800ms"
+              hx-target="#saved-{{ i }}-{{ champ }}" hx-swap="innerHTML">{{ text }}</textarea>
+</label>
+{% endfor %}

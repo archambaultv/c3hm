@@ -31,8 +31,8 @@ tp1/
 ├── notes/
 │   ├── equipes/
 │   │   └── A.yaml           notes et commentaires de l'équipe A
-│   ├── 1234567.yaml         notes et commentaires d'un étudiant
-│   └── 2345678.yaml
+│   ├── Tremblay_Alice_1234567.yaml   notes et commentaires d'un étudiant
+│   └── Roy_Bob_2345678.yaml
 └── sortie/                  écrit par c3hm export
     ├── notes_omnivox.xlsx
     ├── grille.md

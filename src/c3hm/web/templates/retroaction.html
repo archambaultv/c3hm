@@ -7,10 +7,7 @@
 {% include "partials/pdf_style.html" %}
 </head>
 <body>
-<div class="grade">
-    <div class="grade-value">{{ grade.final }}</div>
-    <div class="grade-max">/ 100</div>
-</div>
+<div class="grade"><span class="grade-value">{{ grade.final }}</span> <span class="grade-max">/ 100</span></div>
 <h1>{{ student.fullname() }}</h1>
 <p class="sub">{{ evaluation.title }} — {{ evaluation.course }} — {{ evaluation.session }}</p>
 
@@ -19,12 +16,12 @@
 {% set res = grade.result_for(crit) %}
 <section class="fiche">
     <h2>{{ crit.label }} <span class="weight">{% if res.score is not none %}{{ res.score|round(1) }}{% else %}—{% endif %} / {{ crit.weight }}</span></h2>
-    {% if res.level %}
-    <h3 style="background: {{ level_color(res.level) }}"><span class="check">✓</span>{{ res.level.label }}</h3>
-    <div class="texte">{{ crit.descriptors.get(res.level.label, "")|md }}</div>
-    {% endif %}
+    <p class="obtenu">Niveau obtenu : {% if res.level %}<span class="pastille" style="background: {{ level_color(res.level) }}">{{ res.level.label }} ({{ res.level.percentage }} %)</span>{% else %}—{% endif %}</p>
     {% if notes.comment_for(crit.label) %}
-    <div class="texte"><strong>Commentaire</strong><div class="text">{{ notes.comment_for(crit.label) }}</div></div>
+    <div class="remarque"><strong>Commentaire</strong><div class="texte">{{ notes.comment_for(crit.label)|md }}</div></div>
+    {% endif %}
+    {% if notes.progress_for(crit.label) %}
+    <div class="remarque"><strong>Axe de progression</strong><div class="texte">{{ notes.progress_for(crit.label)|md }}</div></div>
     {% endif %}
 </section>
 {% endfor %}
@@ -54,12 +51,16 @@
 {% endif %}
 
 {% set commented = [] %}
-{% for crit in evaluation.criteria %}{% if notes.comment_for(crit.label) %}{% set _ = commented.append(crit) %}{% endif %}{% endfor %}
+{% for crit in evaluation.criteria %}{% if notes.comment_for(crit.label) or notes.progress_for(crit.label) %}{% set _ = commented.append(crit) %}{% endif %}{% endfor %}
 {% if commented and evaluation.layout != "liste" %}
 <div class="comment">
     <h2>Commentaires par critère</h2>
     {% for crit in commented %}
-    <div class="comment-item"><strong>{{ crit.label }}</strong><span class="text">{{ notes.comment_for(crit.label) }}</span></div>
+    <div class="comment-item">
+        <strong>{{ crit.label }}</strong>
+        {% if notes.comment_for(crit.label) %}<div class="texte">{{ notes.comment_for(crit.label)|md }}</div>{% endif %}
+        {% if notes.progress_for(crit.label) %}<em>Axe de progression</em><div class="texte">{{ notes.progress_for(crit.label)|md }}</div>{% endif %}
+    </div>
     {% endfor %}
 </div>
 {% endif %}
@@ -67,10 +68,16 @@
 {% if notes.comment.strip() %}
 <div class="comment">
     <h2>Commentaire général</h2>
-    <div class="text">{{ notes.comment }}</div>
+    <div class="texte">{{ notes.comment|md }}</div>
 </div>
 {% endif %}
 
-<p class="note">La grille sert de guide au jugement professionnel de l'enseignant et n'est pas exhaustive. La note peut être ajustée en présence d'une erreur significative ou d'un non-respect des attentes implicites de qualité.</p>
+{% if evaluation.layout == "liste" %}
+<div class="annexe">
+    <h1>Grille d'évaluation</h1>
+    {% include "partials/grille_liste_pdf.html" %}
+</div>
+{% endif %}
+
 </body>
 </html>
