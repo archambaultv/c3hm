@@ -1,0 +1,37 @@
+<div id="exports">
+    {% macro fermable(classe) %}
+    <div class="alert {{ classe }} fermable">
+        <span>{{ caller() }}</span>
+        <button type="button" class="fermer" title="Masquer" onclick="this.closest('.alert').remove()">✕</button>
+    </div>
+    {% endmacro %}
+
+    {% if error %}{% call fermable("alert-error") %}{{ error }}{% endcall %}{% endif %}
+    {% if written %}{% call fermable("alert-ok auto") %}Écrit : <code>{{ written.relative_to(workspace.root) }}</code>{% endcall %}{% endif %}
+    {% if report %}
+    {% call fermable("alert-ok auto") %}{{ report.exported|length }} étudiant(s) exporté(s), {{ report.pdf_count }} rétroaction(s) PDF.{% endcall %}
+    {% if report.skipped %}
+    {% call fermable("alert-warn") %}Non exporté(s), correction incomplète : {{ report.skipped|join(", ") }}.{% endcall %}
+    {% endif %}
+    {% endif %}
+
+    <fieldset>
+        <legend>Notes</legend>
+        <form hx-post="{{ url_for('exports_notes') }}" hx-target="#exports" hx-swap="outerHTML"
+              method="post" action="{{ url_for('exports_notes') }}" class="actions">
+            <button type="submit" class="btn btn-primary">Exporter les notes</button>
+            <button type="button" class="btn" onclick="copier(this, 'omnivox')">Copier pour Omnivox</button>
+        </form>
+        <pre id="omnivox" hidden>{{ omnivox }}</pre>
+    </fieldset>
+
+    <fieldset>
+        <legend>Grille</legend>
+        <div class="actions">
+            <button type="button" class="btn" hx-post="{{ url_for('exports_rubric_markdown') }}" hx-target="#exports" hx-swap="outerHTML">Exporter en Markdown</button>
+            <button type="button" class="btn" onclick="copier(this, 'md')">Copier en Markdown</button>
+            <button type="button" class="btn" hx-post="{{ url_for('exports_rubric_pdf') }}" hx-target="#exports" hx-swap="outerHTML">Exporter en PDF</button>
+        </div>
+        <pre id="md" hidden>{{ markdown }}</pre>
+    </fieldset>
+</div>

@@ -1,0 +1,40 @@
+<div id="etudiants">
+    {% if message %}<div class="alert alert-ok">{{ message }}</div>{% endif %}
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+    <fieldset>
+        <legend>Importer la liste Omnivox</legend>
+        <form hx-post="{{ url_for('students_import') }}" hx-encoding="multipart/form-data" hx-target="#etudiants" hx-swap="outerHTML"
+              method="post" action="{{ url_for('students_import') }}" enctype="multipart/form-data" class="actions">
+            <input type="file" name="csv" accept=".csv,text/csv" required>
+            <button type="submit" class="btn btn-primary">Importer</button>
+        </form>
+    </fieldset>
+
+    <fieldset>
+        <legend>Liste <span class="muted">({{ students|length }})</span></legend>
+        {% if students %}
+        <datalist id="equipes">{% for t in teams %}<option value="{{ t }}">{% endfor %}</datalist>
+        <table class="table-list">
+            <thead><tr><th>Nom</th><th>Prénom</th><th>Matricule</th><th>Équipe</th></tr></thead>
+            <tbody>
+            {% for s in students %}
+            <tr>
+                <td>{{ s.surname }}</td><td>{{ s.firstname }}</td><td><code>{{ s.matricule }}</code></td>
+                <td class="team-cell">
+                    <input name="equipe" list="equipes" value="{{ s.team or '' }}" class="team-input"
+                           hx-post="{{ url_for('students_set_team') }}"
+                           hx-vals='{{ {"matricule": s.matricule}|tojson }}'
+                           hx-trigger="change"
+                           hx-target="#team-status-{{ s.matricule }}" hx-swap="innerHTML">
+                    <span id="team-status-{{ s.matricule }}" class="saved-status"></span>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="muted">Aucun étudiant pour l'instant.</p>
+        {% endif %}
+    </fieldset>
+</div>

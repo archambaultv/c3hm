@@ -1,0 +1,38 @@
+<section id="notes">
+    {% include "partials/grille.html" %}
+
+    <fieldset class="comments">
+        <legend>Commentaires</legend>
+        {% for crit in evaluation.criteria %}
+        {% set i = loop.index0 %}
+        {% set inherited = team_notes is not none and not own.comment_for(crit.label) and team_notes.comment_for(crit.label) %}
+        <label>
+            <span>{{ crit.label }} <span id="saved-{{ i }}" class="saved-status">{% if inherited %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
+            <textarea rows="2" name="texte"
+                      hx-post="{{ base }}/commentaire"
+                      hx-vals='{{ {"critere": crit.label}|tojson }}'
+                      hx-trigger="input changed delay:800ms"
+                      hx-target="#saved-{{ i }}" hx-swap="innerHTML">{{ notes.comment_for(crit.label) }}</textarea>
+        </label>
+        {% endfor %}
+        {% set inherited = team_notes is not none and not own.comment.strip() and team_notes.comment.strip() %}
+        <label>
+            <span><strong>Commentaire général</strong> <span id="saved-global" class="saved-status">{% if inherited %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
+            <textarea rows="4" name="texte"
+                      hx-post="{{ base }}/commentaire"
+                      hx-trigger="input changed delay:800ms"
+                      hx-target="#saved-global" hx-swap="innerHTML">{{ notes.comment }}</textarea>
+        </label>
+        {% if subject.kind == "etudiant" %}
+        <label class="override">
+            <span>Note ajustée <span id="saved-override" class="saved-status"></span></span>
+            <input name="note" value="{{ notes.override if notes.override is not none else '' }}" inputmode="decimal" class="num"
+                   hx-post="{{ base }}/note-ajustee"
+                   hx-trigger="input changed delay:800ms"
+                   hx-target="#saved-override" hx-swap="innerHTML">
+        </label>
+        {% endif %}
+    </fieldset>
+
+    {% include "partials/poll.html" %}
+</section>

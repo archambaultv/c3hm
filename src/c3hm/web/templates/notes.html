@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ subject.title }} — c3hm{% endblock %}
+{% block content %}
+<div class="grading-head">
+    <div>
+        <h1>{{ subject.title }} {% if student %}<span class="muted">{{ student.matricule }}</span>{% endif %}</h1>
+        <p class="muted">
+            {{ evaluation.title }}
+            {% if subject.siblings %} — {{ subject.index + 1 }} / {{ subject.siblings|length }}{% endif %}
+        </p>
+    </div>
+    <nav class="pager">
+        {% if student %}<a class="btn" href="{{ url_for('feedback_preview', key=student.matricule) }}" target="_blank">Rétroaction</a>{% endif %}
+        {% if subject.previous %}<a class="btn" href="{{ subject.previous[1] }}">← {{ subject.previous[0] }}</a>{% endif %}
+        {% if subject.following %}<a class="btn" href="{{ subject.following[1] }}">{{ subject.following[0] }} →</a>{% endif %}
+    </nav>
+</div>
+
+{% if subject.members %}
+<nav class="team-bar">
+    {% if subject.kind == "etudiant" %}
+    <a class="btn btn-team" href="{{ url_for('grading_page', kind='equipe', key=subject.team) }}">↑ Équipe {{ subject.team }}</a>
+    {% else %}
+    <span class="team-bar-label">Membres</span>
+    {% endif %}
+    {% for m in subject.members %}
+    {% if m.matricule == subject.key %}
+    <span class="team-member current">{{ m.fullname() }}</span>
+    {% else %}
+    <a class="team-member" href="{{ url_for('grading_page', kind='etudiant', key=m.matricule) }}">{{ m.fullname() }}</a>
+    {% endif %}
+    {% endfor %}
+</nav>
+{% endif %}
+
+<div id="banniere"></div>
+{% include "partials/notes.html" %}
+{% endblock %}

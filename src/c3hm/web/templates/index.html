@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Accueil — c3hm{% endblock %}
+{% block content %}
+<p class="muted">Dossier : <code>{{ workspace.root }}</code></p>
+
+{% if error %}
+<div class="alert alert-error">
+    <strong>Impossible de lire evaluation.yaml.</strong> {{ error }}
+    <p>Corrigez le fichier dans votre éditeur, puis rechargez cette page.</p>
+</div>
+{% elif evaluation %}
+<section class="card">
+    <h2>{{ evaluation.title }}</h2>
+    <p>{{ evaluation.course }} — {{ evaluation.session }}</p>
+    <p>{{ evaluation.criteria|length }} critère(s), {{ evaluation.scale|length }} niveaux, pondération totale {{ evaluation.total_weight() }} / 100</p>
+    {% if errors %}
+    <div class="alert alert-warn">
+        <strong>L'évaluation est incomplète :</strong>
+        <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    <a class="btn btn-primary" href="{{ url_for('evaluation_edit') }}">Modifier la grille</a>
+</section>
+{% else %}
+<section class="card">
+    <h2>Aucune évaluation</h2>
+    <p>Ce dossier ne contient pas encore de fichier <code>evaluation.yaml</code>.</p>
+    <form method="post" action="{{ url_for('evaluation_create') }}">
+        <button class="btn btn-primary" type="submit">Créer evaluation.yaml</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="card">
+    <div class="header-row">
+        <h2>Correction <span class="muted">{{ graded_count }} / {{ rows|length }}</span></h2>
+        <a class="btn" href="{{ url_for('students_page') }}">{% if rows %}Étudiants{% else %}Importer les étudiants{% endif %}</a>
+    </div>
+    {% if students_error %}
+    <p class="alert alert-error">{{ students_error }}</p>
+    {% elif rows %}
+    <table class="table-list">
+        <thead><tr><th>Nom</th><th>Prénom</th><th>Note</th><th>Statut</th></tr></thead>
+        <tbody>
+        {% for group in groups %}
+        {% if group.team %}
+        <tr class="group-row"><th colspan="4"><a href="{{ url_for('grading_page', kind='equipe', key=group.team) }}">Équipe {{ group.team }}</a></th></tr>
+        {% elif groups|length > 1 %}
+        <tr class="group-row"><th colspan="4">Sans équipe</th></tr>
+        {% endif %}
+        {% for row in group.rows %}
+        <tr>
+            <td><a href="{{ url_for('grading_page', kind='etudiant', key=row.student.matricule) }}">{{ row.student.surname }}</a></td>
+            <td>{{ row.student.firstname }}</td>
+            <td>{% if row.grade and row.grade.final is not none %}{{ row.grade.final }}{% endif %}</td>
+            <td>
+                {% if row.error %}<span class="badge badge-error">Fichier invalide</span>
+                {% elif row.grade and row.grade.complete %}<span class="badge badge-ok">Corrigé</span>
+                {% elif row.grade and row.grade.results|selectattr("level")|list %}<span class="badge badge-warn">En cours</span>
+                {% else %}<span class="badge">À corriger</span>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Aucun étudiant.</p>
+    {% endif %}
+</section>
+{% endblock %}

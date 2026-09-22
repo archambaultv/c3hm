@@ -1,0 +1,32 @@
+{# Style commun à la grille vierge et à la rétroaction. #}
+<style>
+@page { size: letter {{ "portrait" if evaluation.layout == "liste" else "landscape" }}; margin: 1.2cm; }
+body { font-family: "DejaVu Sans", system-ui, sans-serif; color: #1f2933; font-size: 10pt; line-height: 1.4; margin: 0; }
+h1 { font-size: 15pt; margin: 0 0 2px; }
+.sub { color: #6b7280; margin: 0 0 14px; font-size: 10pt; }
+.grade { float: right; text-align: right; }
+.grade-value { font-size: 26pt; font-weight: 700; line-height: 1; }
+.grade-max { color: #6b7280; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 14px; table-layout: fixed; }
+th, td { border: 1px solid #d9dde3; padding: 5px 7px; vertical-align: top; text-align: left; font-size: 9pt; }
+th.level { text-align: center; font-weight: 600; }
+th.crit { width: 20%; }
+td.cell { color: #6b7280; }
+td.cell.selected { color: #1f2933; font-weight: 600; }
+.check { font-weight: 700; margin-right: 4px; }
+.weight { color: #6b7280; font-weight: normal; font-size: 8.5pt; }
+.fiche { margin-bottom: 14px; }
+.fiche h2 { font-size: 11.5pt; margin: 0 0 6px; border-bottom: 1px solid #d9dde3; padding-bottom: 3px; }
+.fiche h2, .fiche h3 { break-after: avoid; }
+.fiche h3 { display: inline-block; font-size: 9pt; margin: 6px 0 4px; padding: 2px 8px; border-radius: 3px; }
+.texte { font-size: 9pt; orphans: 2; widows: 2; }
+.texte ul { margin: 3px 0; padding-left: 18px; }
+.texte p { margin: 3px 0; }
+.comment { margin-bottom: 10px; }
+.comment h2 { font-size: 11pt; margin: 0 0 4px; }
+.comment-item { margin-bottom: 6px; }
+.comment-item strong { display: block; }
+.text { white-space: pre-wrap; }
+.note { margin-top: 14px; color: #6b7280; font-size: 8.5pt; }
+.obtenu { font-weight: 600; }
+</style>

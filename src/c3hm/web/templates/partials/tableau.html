@@ -1,0 +1,39 @@
+{# Affichage « grille » : un tableau, un critère par ligne. #}
+<table class="grille">
+    <thead>
+    <tr>
+        <th class="crit-head">Critère</th>
+        {% for lvl in evaluation.scale %}
+        <th class="level-head" style="background: {{ level_color(lvl) }}">{{ lvl.label }}<br><span class="muted small">{{ lvl.percentage }} %</span></th>
+        {% endfor %}
+    </tr>
+    </thead>
+    <tbody>
+    {% for crit in evaluation.criteria %}
+    {% set res = grade.result_for(crit) %}
+    {% set own_level = own.level_for(crit.label) %}
+    {% set inherited = own_level is none and res.level is not none %}
+    {% set team_level = evaluation.level(team_notes.level_for(crit.label)) if team_notes is not none and team_notes.level_for(crit.label) else none %}
+    <tr>
+        <th class="crit">
+            {{ crit.label }}
+            <div class="muted small">{% if res.score is not none %}{{ res.score|round(1) }}{% else %}—{% endif %} / {{ crit.weight }}</div>
+            {% include "partials/heritage.html" %}
+        </th>
+        {% for lvl in evaluation.scale %}
+        {% set selected = res.level == lvl %}
+        {% set team_here = team_level == lvl and not selected %}
+        <td class="cell {% if selected %}selected{% endif %} {% if selected and inherited %}inherited-cell{% endif %} {% if team_here %}team-level{% endif %}"
+            {% if selected %}style="background: {{ level_color(lvl) }}"{% endif %}
+            hx-post="{{ base }}/niveau"
+            hx-vals='{{ {"critere": crit.label, "niveau": "" if (selected and not inherited) else lvl.label}|tojson }}'
+            hx-target="#grille" hx-swap="outerHTML">
+            {% if selected %}<span class="check">✓</span>{% endif %}
+            {% if team_here %}<span class="team-mark" title="Niveau de l'équipe">équipe</span>{% endif %}
+            {{ crit.descriptors.get(lvl.label, "")|md }}
+        </td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>

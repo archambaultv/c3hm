@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Étudiants — c3hm{% endblock %}
+{% block content %}
+<h1>Étudiants</h1>
+<p class="muted">Enregistrés dans <code>{{ workspace.students_path }}</code>. Vous pouvez aussi modifier ce fichier directement, puis <a href="{{ url_for('students_page') }}">recharger cette page</a>.</p>
+{% include "partials/etudiants.html" %}
+{% endblock %}

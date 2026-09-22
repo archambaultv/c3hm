@@ -1,0 +1,103 @@
+{# Formulaire complet de l'évaluation. Les boutons de structure repostent le formulaire vers /evaluation/form. #}
+{% set repost = 'hx-post="' ~ url_for('evaluation_form') ~ '" hx-target="#evaluation-form" hx-swap="outerHTML"' %}
+<form id="evaluation-form" method="post" action="{{ url_for('evaluation_save') }}"
+      hx-post="{{ url_for('evaluation_save') }}" hx-target="this" hx-swap="outerHTML">
+
+    {% if saved %}<div class="alert alert-ok">Enregistré dans evaluation.yaml.</div>{% endif %}
+    {% if errors %}
+    <div class="alert alert-error">
+        <strong>À corriger avant d'enregistrer :</strong>
+        <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% if affected %}
+    <div class="alert alert-warn">
+        <strong>Ce changement invalide {{ affected|length }} correction(s) :</strong> {{ affected|join(", ") }}.
+        Les niveaux ou critères renommés ou supprimés ne seront plus reconnus dans leurs notes.
+        <div class="actions">
+            <button type="submit" name="confirmer" value="1" class="btn btn-primary">Enregistrer quand même</button>
+            <a class="btn" href="{{ url_for('evaluation_edit') }}">Annuler</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <fieldset>
+        <legend>Informations</legend>
+        <div class="grid-3">
+            <label>Cours <input name="cours" value="{{ evaluation.course }}" placeholder="420-5D2-MA"></label>
+            <label>Session <input name="session" value="{{ evaluation.session }}" placeholder="Automne 2026"></label>
+            <label>Évaluation <input name="evaluation" value="{{ evaluation.title }}" placeholder="TP1 — API REST"></label>
+            <label>Affichage
+                <select name="affichage" {{ repost|safe }} hx-trigger="change">
+                    <option value="grille" {% if evaluation.layout == "grille" %}selected{% endif %}>Grille (descripteurs courts)</option>
+                    <option value="liste" {% if evaluation.layout == "liste" %}selected{% endif %}>Liste (descripteurs longs)</option>
+                </select>
+            </label>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Échelle</legend>
+        <table class="table-scale">
+            <thead><tr><th>Niveau</th><th>%</th><th></th></tr></thead>
+            <tbody>
+            {% for lvl in evaluation.scale %}
+            {% set j = loop.index0 %}
+            <tr>
+                <td><input name="niveau-{{ j }}-nom" value="{{ lvl.label }}" {{ repost|safe }} hx-trigger="change"></td>
+                <td><input name="niveau-{{ j }}-pct" value="{{ lvl.percentage }}" inputmode="decimal" class="num"></td>
+                <td class="row-actions">
+                    <button type="button" name="action" value="niveau-monter:{{ j }}" {{ repost|safe }} title="Monter" {% if loop.first %}disabled{% endif %}>↑</button>
+                    <button type="button" name="action" value="niveau-descendre:{{ j }}" {{ repost|safe }} title="Descendre" {% if loop.last %}disabled{% endif %}>↓</button>
+                    <button type="button" name="action" value="niveau-retirer:{{ j }}" {{ repost|safe }} title="Retirer" class="danger">✕</button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="actions">
+            <button type="button" name="action" value="niveau-ajouter" {{ repost|safe }}>+ Ajouter un niveau</button>
+            <button type="button" name="action" value="echelle-defaut" {{ repost|safe }} class="secondary">Échelle par défaut</button>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Critères <span class="muted">(pondération totale : {{ evaluation.total_weight() }} / 100)</span></legend>
+        {% for crit in evaluation.criteria %}
+        {% set i = loop.index0 %}
+        <div class="criterion">
+            <div class="criterion-head">
+                <label class="grow">Critère <input name="critere-{{ i }}-nom" value="{{ crit.label }}" placeholder="Qualité du code"></label>
+                <label>Pondération <input name="critere-{{ i }}-pond" value="{{ crit.weight }}" inputmode="decimal" class="num"></label>
+                <span class="row-actions">
+                    <button type="button" name="action" value="critere-monter:{{ i }}" {{ repost|safe }} title="Monter" {% if loop.first %}disabled{% endif %}>↑</button>
+                    <button type="button" name="action" value="critere-descendre:{{ i }}" {{ repost|safe }} title="Descendre" {% if loop.last %}disabled{% endif %}>↓</button>
+                    <button type="button" name="action" value="critere-retirer:{{ i }}" {{ repost|safe }} title="Retirer" class="danger">✕</button>
+                </span>
+            </div>
+            <div class="descriptors {% if evaluation.layout == "liste" %}descriptors-wide{% endif %}">
+                {% for lvl in evaluation.scale %}
+                {% set j = loop.index0 %}
+                <label>
+                    <span class="level-name">{{ lvl.label or "Niveau " ~ (j + 1) }} <span class="muted">({{ lvl.percentage }} %)</span></span>
+                    <textarea name="critere-{{ i }}-desc-{{ j }}" rows="{{ 8 if evaluation.layout == 'liste' else 2 }}" placeholder="Descripteur (facultatif)">{{ crit.descriptors.get(lvl.label, "") }}</textarea>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        <div class="actions">
+            <button type="button" name="action" value="critere-ajouter" {{ repost|safe }}>+ Ajouter un critère</button>
+        </div>
+    </fieldset>
+
+    <div class="actions sticky-actions">
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+        <a class="btn" href="{{ url_for('evaluation_edit') }}">Recharger depuis le fichier</a>
+    </div>
+
+    <details class="yaml-preview">
+        <summary>Aperçu YAML</summary>
+        <pre class="yaml">{{ yaml_text }}</pre>
+    </details>
+</form>

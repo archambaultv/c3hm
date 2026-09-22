@@ -1,0 +1,3 @@
+{% if error %}<span class="saved-error">{{ error }}</span>{% elif inherited %}<span class="inherited">hérité de l'équipe</span>{% else %}<span class="saved-ok">enregistré</span>{% endif %}
+{% if oob_grille %}{% include "partials/grille.html" %}{% endif %}
+{% if base %}{% with oob=True %}{% include "partials/poll.html" %}{% endwith %}{% endif %}

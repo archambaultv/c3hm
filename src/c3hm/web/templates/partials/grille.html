@@ -1,0 +1,10 @@
+{# Conteneur commun aux deux affichages : total puis tableau ou fiches. #}
+<div id="grille" {% if oob_grille %}hx-swap-oob="true"{% endif %}>
+    {% include "partials/total.html" %}
+    {% if evaluation.layout == "liste" %}
+    {% include "partials/fiches.html" %}
+    {% else %}
+    {% include "partials/tableau.html" %}
+    {% endif %}
+</div>
+{% if oob_poll %}{% with oob=True %}{% include "partials/poll.html" %}{% endwith %}{% endif %}

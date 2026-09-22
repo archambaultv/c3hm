@@ -1,0 +1,60 @@
+[project]
+name = "c3hm"
+version = "1.0.0"
+description = "Correction par grille d'évaluation, avec interface web locale"
+readme = "README.md"
+authors = [
+    { name = "Vincent Archambault-Bouffard", email = "varchambaultbouffard@cmaisonneuve.qc.ca" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.5.0",
+    "openpyxl>=3.1.5",
+    "flask>=3.1.3",
+    "jinja2>=3.1.6",
+    "pyyaml>=6.0.3",
+    "weasyprint>=70.0",
+    "markdown>=3.10.3",
+]
+
+[project.scripts]
+c3hm = "c3hm.cli.cli:main"
+
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.1.1",
+  "ruff>=0.16.8",
+  "nox>=2026.8.17",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "nox>=2026.8.17",
+    "pytest>=9.1.1",
+    "ruff>=0.16.8",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "F",     # Pyflakes (includes unused imports, undefined names, etc.)
+    "E",     # pycodestyle (errors)
+    "W",     # pycodestyle (warnings)
+    "I",     # isort (import sorting)
+    "UP",    # pyupgrade (upgrade syntax)
+    "B",     # flake8-bugbear (common bugs and antipatterns)
+    "ARG",   # flake8-unused-arguments
+    "N",     # pep8-naming
+    "SIM",   # flake8-simplify
+    "ERA",   # eradicate (commented-out code)
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

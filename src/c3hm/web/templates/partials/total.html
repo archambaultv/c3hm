@@ -1,0 +1,13 @@
+<div class="total">
+    {% if grade.final is not none %}
+    <span class="total-value">{{ grade.final }}</span><span class="muted"> / 100</span>
+    {% if notes.has_override() %}
+    <span class="muted small">ajustée{% if grade.computed is not none %}, calculée {{ round_half_up(grade.computed) }}{% endif %}</span>
+    {% endif %}
+    {% else %}
+    <span class="total-value muted">—</span><span class="muted"> / 100</span>
+    {% endif %}
+    {% if notes.has_override() and not notes.comment.strip() %}
+    <span class="alert alert-warn small">Note ajustée sans commentaire général.</span>
+    {% endif %}
+</div>

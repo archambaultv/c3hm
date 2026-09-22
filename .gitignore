@@ -1,0 +1,25 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments and package management
+.venv
+.tox
+.nox
+.ruff_cache
+.pytest_cache
+.vscode
+.idea
+
+# Test output folder
+tests/output
+
+# Miscellaneous
+~$*
+.DS_Store
+CLAUDE.md
+tmp

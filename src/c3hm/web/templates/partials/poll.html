@@ -1,0 +1,3 @@
+<div id="poll" {% if oob %}hx-swap-oob="true"{% endif %}
+     hx-get="{{ base }}/notes?v={{ version }}"
+     hx-trigger="every 3s" hx-target="#banniere" hx-swap="innerHTML"></div>

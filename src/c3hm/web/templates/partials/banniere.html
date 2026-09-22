@@ -1,0 +1,8 @@
+{# Les fichiers ont changé sur le disque : on arrête de surveiller et on laisse choisir. #}
+<div class="alert alert-warn banniere">
+    <span>Les fichiers ont changé sur le disque.</span>
+    <span class="actions">
+        <button type="button" class="btn btn-primary" hx-get="{{ base }}/notes?recharger=1" hx-target="#notes" hx-swap="outerHTML">Recharger</button>
+        <button type="button" class="btn" hx-get="{{ base }}/surveiller?v={{ version }}" hx-target="#poll" hx-swap="outerHTML" hx-on::after-request="document.getElementById('banniere').innerHTML = ''">Garder l'affichage</button>
+    </span>
+</div>

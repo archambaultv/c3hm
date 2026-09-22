@@ -1,0 +1,50 @@
+{# Grille vierge, pour impression ou publication. #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>{{ evaluation.title }}</title>
+{% include "partials/pdf_style.html" %}
+</head>
+<body>
+<h1>{{ evaluation.title }}</h1>
+<p class="sub">{{ evaluation.course }} — {{ evaluation.session }}</p>
+
+{% if evaluation.layout == "liste" %}
+{% for crit in evaluation.criteria %}
+<section class="fiche">
+    <h2>{{ crit.label }} <span class="weight">{{ crit.weight }} %</span></h2>
+    {% for lvl in evaluation.scale %}
+    {% if crit.descriptors.get(lvl.label) %}
+    <h3 style="background: {{ level_color(lvl) }}">{{ lvl.label }} <span class="weight">{{ lvl.percentage }} %</span></h3>
+    <div class="texte">{{ crit.descriptors[lvl.label]|md }}</div>
+    {% endif %}
+    {% endfor %}
+</section>
+{% endfor %}
+{% else %}
+<table>
+    <thead>
+    <tr>
+        <th class="crit">Critère</th>
+        {% for lvl in evaluation.scale %}
+        <th class="level" style="background: {{ level_color(lvl) }}">{{ lvl.label }}<br><span class="weight">{{ lvl.percentage }} %</span></th>
+        {% endfor %}
+    </tr>
+    </thead>
+    <tbody>
+    {% for crit in evaluation.criteria %}
+    <tr>
+        <th>{{ crit.label }}<br><span class="weight">{{ crit.weight }} %</span></th>
+        {% for lvl in evaluation.scale %}
+        <td>{{ crit.descriptors.get(lvl.label, "")|md }}</td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<p class="note">La grille sert de guide au jugement professionnel de l'enseignant et n'est pas exhaustive. La note peut être ajustée en présence d'une erreur significative ou d'un non-respect des attentes implicites de qualité.</p>
+</body>
+</html>

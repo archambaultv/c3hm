@@ -1,0 +1,76 @@
+{# Rétroaction d'un étudiant. Rendu tel quel dans le navigateur et par WeasyPrint. #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>{{ evaluation.title }} — {{ student.fullname() }}</title>
+{% include "partials/pdf_style.html" %}
+</head>
+<body>
+<div class="grade">
+    <div class="grade-value">{{ grade.final }}</div>
+    <div class="grade-max">/ 100</div>
+</div>
+<h1>{{ student.fullname() }}</h1>
+<p class="sub">{{ evaluation.title }} — {{ evaluation.course }} — {{ evaluation.session }}</p>
+
+{% if evaluation.layout == "liste" %}
+{% for crit in evaluation.criteria %}
+{% set res = grade.result_for(crit) %}
+<section class="fiche">
+    <h2>{{ crit.label }} <span class="weight">{% if res.score is not none %}{{ res.score|round(1) }}{% else %}—{% endif %} / {{ crit.weight }}</span></h2>
+    {% if res.level %}
+    <h3 style="background: {{ level_color(res.level) }}"><span class="check">✓</span>{{ res.level.label }}</h3>
+    <div class="texte">{{ crit.descriptors.get(res.level.label, "")|md }}</div>
+    {% endif %}
+    {% if notes.comment_for(crit.label) %}
+    <div class="texte"><strong>Commentaire</strong><div class="text">{{ notes.comment_for(crit.label) }}</div></div>
+    {% endif %}
+</section>
+{% endfor %}
+{% else %}
+<table>
+    <thead>
+    <tr>
+        <th class="crit">Critère</th>
+        {% for lvl in evaluation.scale %}
+        <th class="level" style="background: {{ level_color(lvl) }}">{{ lvl.label }}<br><span class="weight">{{ lvl.percentage }} %</span></th>
+        {% endfor %}
+    </tr>
+    </thead>
+    <tbody>
+    {% for crit in evaluation.criteria %}
+    {% set res = grade.result_for(crit) %}
+    <tr>
+        <th>{{ crit.label }}<br><span class="weight">{% if res.score is not none %}{{ res.score|round(1) }}{% else %}—{% endif %} / {{ crit.weight }}</span></th>
+        {% for lvl in evaluation.scale %}
+        {% set selected = res.level == lvl %}
+        <td class="cell {% if selected %}selected{% endif %}" {% if selected %}style="background: {{ level_color(lvl) }}"{% endif %}>{% if selected %}<span class="check">✓</span>{% endif %}{{ crit.descriptors.get(lvl.label, "")|md }}</td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% set commented = [] %}
+{% for crit in evaluation.criteria %}{% if notes.comment_for(crit.label) %}{% set _ = commented.append(crit) %}{% endif %}{% endfor %}
+{% if commented and evaluation.layout != "liste" %}
+<div class="comment">
+    <h2>Commentaires par critère</h2>
+    {% for crit in commented %}
+    <div class="comment-item"><strong>{{ crit.label }}</strong><span class="text">{{ notes.comment_for(crit.label) }}</span></div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if notes.comment.strip() %}
+<div class="comment">
+    <h2>Commentaire général</h2>
+    <div class="text">{{ notes.comment }}</div>
+</div>
+{% endif %}
+
+<p class="note">La grille sert de guide au jugement professionnel de l'enseignant et n'est pas exhaustive. La note peut être ajustée en présence d'une erreur significative ou d'un non-respect des attentes implicites de qualité.</p>
+</body>
+</html>

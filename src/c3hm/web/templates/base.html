@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}c3hm{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='htmx.min.js') }}"></script>
+    <script>
+        // Copie le contenu d'un élément et remet l'étiquette du bouton après quelques secondes.
+        function copier(bouton, id) {
+            navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
+                const original = bouton.dataset.libelle || bouton.textContent;
+                bouton.dataset.libelle = original;
+                bouton.textContent = "Copié";
+                clearTimeout(bouton.dataset.minuterie);
+                bouton.dataset.minuterie = setTimeout(() => { bouton.textContent = original; }, 2000);
+            });
+        }
+
+        // Les messages de succès disparaissent seuls ; les avertissements restent jusqu'au clic.
+        function masquerAuto(racine) {
+            const cibles = [];
+            if (racine.matches && racine.matches(".auto")) cibles.push(racine);
+            if (racine.querySelectorAll) cibles.push(...racine.querySelectorAll(".auto"));
+            cibles.forEach((element) => {
+                if (element.dataset.minute) return;
+                element.dataset.minute = "1";
+                setTimeout(() => element.remove(), 4000);
+            });
+        }
+        document.addEventListener("DOMContentLoaded", () => {
+            masquerAuto(document.body);
+            document.body.addEventListener("htmx:load", (e) => masquerAuto(e.target));
+        });
+    </script>
+</head>
+<body>
+<header>
+    <div class="container header-row">
+        <a href="{{ url_for('index') }}" class="brand"><strong>c3hm</strong> <span class="muted">Corriger à 3 heures du matin</span></a>
+        <nav>
+            <a href="{{ url_for('index') }}">Accueil</a>
+            <a href="{{ url_for('evaluation_edit') }}">Grille</a>
+            <a href="{{ url_for('students_page') }}">Étudiants</a>
+            <a href="{{ url_for('exports_page') }}">Exports</a>
+        </nav>
+    </div>
+</header>
+<main class="container">
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

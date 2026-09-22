@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Évaluation — c3hm{% endblock %}
+{% block content %}
+<h1>Grille d'évaluation</h1>
+<div class="alert alert-error"><strong>Impossible de lire le fichier.</strong> {{ error }}</div>
+<p>Corrigez <code>{{ workspace.evaluation_path }}</code> dans votre éditeur, puis <a href="{{ url_for('evaluation_edit') }}">rechargez cette page</a>.</p>
+<pre class="yaml">{{ yaml_text }}</pre>
+{% endblock %}

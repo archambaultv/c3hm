@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Évaluation — c3hm{% endblock %}
+{% block content %}
+<h1>Grille d'évaluation</h1>
+<p class="muted">Enregistré dans <code>{{ workspace.evaluation_path }}</code>. Vous pouvez aussi modifier ce fichier directement, puis <a href="{{ url_for('evaluation_edit') }}">recharger cette page</a>.</p>
+{% include "partials/evaluation_form.html" %}
+{% endblock %}
