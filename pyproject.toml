@@ -15,6 +15,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "weasyprint>=70.0",
     "markdown>=3.10.3",
+    "nh3>=0.3.7",
 ]
 
 [project.scripts]
