@@ -106,3 +106,13 @@ def test_affichage_liste_ne_remplace_que_la_fiche(client, workspace):
     html = reponse.get_data(as_text=True)
     assert 'id="fiche-1"' in html and 'id="total"' in html
     assert "<textarea" not in html  # la saisie en cours n'est pas écrasée
+
+
+def test_reprendre_lequipe_en_liste_ne_remplace_que_la_fiche(client, graded_workspace):
+    evaluation = graded_workspace.load_evaluation()
+    evaluation.layout = "liste"
+    graded_workspace.save_evaluation(evaluation)
+    i = [c.label for c in evaluation.criteria].index("Tests")
+    page = client.get("/etudiant/1111111").get_data(as_text=True)
+    bouton = page.split("↩ reprendre l'équipe")[0].rsplit("<button", 1)[1]
+    assert f'hx-target="#fiche-{i}"' in bouton
