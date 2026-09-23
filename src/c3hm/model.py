@@ -292,10 +292,14 @@ def _set_normalized(mapping: dict[str, str], key: str, value: str | None) -> Non
 
 @dataclass
 class Notes:
-    """Notes d'un étudiant (ou d'une équipe) : niveau et commentaire par critère, commentaire global, note ajustée."""
+    """
+    Notes d'un étudiant (ou d'une équipe) : niveau, commentaire et axe de progression par critère,
+    commentaire global, note ajustée.
+    """
 
     levels: dict[str, str] = field(default_factory=dict)  # critère -> niveau
     comments: dict[str, str] = field(default_factory=dict)  # critère -> commentaire
+    progress: dict[str, str] = field(default_factory=dict)  # critère -> axe de progression
     comment: str = ""
     override: Number | str | None = None  # note ajustée
 
@@ -305,19 +309,30 @@ class Notes:
     def comment_for(self, criterion_label: str) -> str:
         return _get_normalized(self.comments, criterion_label) or ""
 
+    def progress_for(self, criterion_label: str) -> str:
+        return _get_normalized(self.progress, criterion_label) or ""
+
     def set_level(self, criterion_label: str, level_label: str | None) -> None:
         _set_normalized(self.levels, criterion_label, level_label)
 
     def set_comment(self, criterion_label: str, text: str | None) -> None:
         _set_normalized(self.comments, criterion_label, (text or "").strip() or None)
 
+    def set_progress(self, criterion_label: str, text: str | None) -> None:
+        _set_normalized(self.progress, criterion_label, (text or "").strip() or None)
+
     def has_override(self) -> bool:
         return _is_number(self.override)
 
     def to_dict(self) -> dict:
-        d: dict[str, Any] = {"niveaux": dict(self.levels)}
-        if self.comments:
-            d["commentaires"] = dict(self.comments)
+        criteria: dict[str, dict[str, str]] = {}
+        for crit, level in self.levels.items():
+            criteria.setdefault(crit, {})["niveau"] = level
+        for crit, text in self.comments.items():
+            criteria.setdefault(crit, {})["commentaire"] = text
+        for crit, text in self.progress.items():
+            criteria.setdefault(crit, {})["axe de progression"] = text
+        d: dict[str, Any] = {"critères": criteria}
         if self.comment.strip():
             d["commentaire"] = self.comment
         if self.override not in (None, ""):
@@ -330,16 +345,31 @@ class Notes:
             return cls()
         if not isinstance(data, dict):
             raise ValueError("Le fichier de notes doit contenir un dictionnaire YAML.")
-        levels = data.get("niveaux") or {}
-        comments = data.get("commentaires") or {}
-        if not isinstance(levels, dict):
-            raise ValueError("La clé « niveaux » doit être un dictionnaire critère -> niveau.")
-        if not isinstance(comments, dict):
-            raise ValueError("La clé « commentaires » doit être un dictionnaire critère -> commentaire.")
+        criteria = data.get("critères") or {}
+        if not isinstance(criteria, dict) or not all(isinstance(v, dict | None) for v in criteria.values()):
+            raise ValueError("La clé « critères » doit associer à chaque critère son niveau et ses commentaires.")
+        # ancien format : « niveaux » et « commentaires » séparés, critère -> texte
+        old_levels = data.get("niveaux") or {}
+        old_comments = data.get("commentaires") or {}
+        if not isinstance(old_levels, dict) or not isinstance(old_comments, dict):
+            raise ValueError("Les clés « niveaux » et « commentaires » doivent être des dictionnaires par critère.")
+        entries = [(k, {"niveau": v}) for k, v in old_levels.items()]
+        entries += [(k, v if isinstance(v, dict) else {"commentaire": v}) for k, v in old_comments.items()]
+        entries += [(k, v or {}) for k, v in criteria.items()]
+
+        levels: dict[str, str] = {}
+        comments: dict[str, str] = {}
+        progress: dict[str, str] = {}
+        for crit, fields in entries:
+            for key, target in (("niveau", levels), ("commentaire", comments), ("axe de progression", progress)):
+                value = fields.get(key)
+                if value not in (None, ""):
+                    target[str(crit)] = str(value)
         override = data.get("note ajustée")
         return cls(
-            levels={str(k): str(v) for k, v in levels.items() if v not in (None, "")},
-            comments={str(k): str(v) for k, v in comments.items() if v not in (None, "")},
+            levels=levels,
+            comments=comments,
+            progress=progress,
             comment=str(data.get("commentaire") or ""),
             override=None if override in (None, "") else override,
         )
@@ -393,6 +423,9 @@ def invalid_references(evaluation: Evaluation, notes: Notes) -> list[str]:
     for crit_label in notes.comments:
         if evaluation.criterion(crit_label) is None:
             problems.append(f"critère inconnu « {crit_label} » (commentaire)")
+    for crit_label in notes.progress:
+        if evaluation.criterion(crit_label) is None:
+            problems.append(f"critère inconnu « {crit_label} » (axe de progression)")
     return problems
 
 
@@ -404,9 +437,13 @@ def merge_notes(team: Notes, own: Notes) -> Notes:
     comments = dict(team.comments)
     for k, v in own.comments.items():
         _set_normalized(comments, k, v)
+    progress = dict(team.progress)
+    for k, v in own.progress.items():
+        _set_normalized(progress, k, v)
     return Notes(
         levels=levels,
         comments=comments,
+        progress=progress,
         comment=own.comment if own.comment.strip() else team.comment,
         override=own.override,
     )

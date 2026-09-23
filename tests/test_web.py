@@ -73,15 +73,10 @@ def test_grille_invalide_refusee(client, workspace):
     assert workspace.load_evaluation().title == "TP1"  # inchangée
 
 
-def test_surveillance_des_fichiers(graded_client, graded_workspace):
-    page = graded_client.get("/etudiant/3333333").get_data(as_text=True)
-    version = page.split("notes?v=")[1].split('"')[0]
-
-    assert graded_client.get(f"/etudiant/3333333/notes?v={version}").status_code == 204
-
-    graded_workspace.save_notes("3333333", Notes(levels={"Tests": "Avancé"}))
-    changement = graded_client.get(f"/etudiant/3333333/notes?v={version}")
-    assert "ont changé sur le disque" in changement.get_data(as_text=True)
+def test_actualiser_relit_les_fichiers(graded_client, graded_workspace):
+    graded_workspace.save_notes("3333333", Notes(comment="Modifié à la main."))
+    page = graded_client.get("/etudiant/3333333/notes").get_data(as_text=True)
+    assert "Modifié à la main." in page
 
 
 def test_import_de_la_liste_omnivox(client, workspace):
@@ -89,3 +84,25 @@ def test_import_de_la_liste_omnivox(client, workspace):
     reponse = client.post("/etudiants/importer", data={"csv": (io.BytesIO(csv), "liste.csv")})
     assert "1 nouveau(x)" in reponse.get_data(as_text=True)
     assert any(s.matricule == "9999999" for s in workspace.load_students())
+
+
+def test_commentaire_et_axe_de_progression_distincts(client, workspace):
+    client.post("/etudiant/3333333/commentaire", data={"critere": "Tests", "texte": "Bien."})
+    client.post("/etudiant/3333333/commentaire", data={"critere": "Tests", "champ": "axe", "texte": "Plus de cas."})
+    notes = workspace.load_notes("3333333")
+    assert (notes.comment_for("Tests"), notes.progress_for("Tests")) == ("Bien.", "Plus de cas.")
+    texte = workspace.notes_path("3333333").read_text(encoding="utf-8")
+    assert "critères:\n  Tests:\n    commentaire: Bien.\n    axe de progression: Plus de cas.\n" in texte
+
+
+def test_affichage_liste_ne_remplace_que_la_fiche(client, workspace):
+    evaluation = workspace.load_evaluation()
+    evaluation.layout = "liste"
+    workspace.save_evaluation(evaluation)
+    page = client.get("/etudiant/3333333").get_data(as_text=True)
+    assert "Axe de progression" in page.split('id="fiche-1"')[1]  # commentaires dans la fiche
+
+    reponse = client.post("/etudiant/3333333/niveau", data={"critere": "Fonctionnalités", "niveau": "Acquis"})
+    html = reponse.get_data(as_text=True)
+    assert 'id="fiche-1"' in html and 'id="total"' in html
+    assert "<textarea" not in html  # la saisie en cours n'est pas écrasée

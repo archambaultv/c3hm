@@ -4,7 +4,7 @@
 body { font-family: "DejaVu Sans", system-ui, sans-serif; color: #1f2933; font-size: 10pt; line-height: 1.4; margin: 0; }
 h1 { font-size: 15pt; margin: 0 0 2px; }
 .sub { color: #6b7280; margin: 0 0 14px; font-size: 10pt; }
-.grade { float: right; text-align: right; }
+.grade { float: right; white-space: nowrap; }
 .grade-value { font-size: 26pt; font-weight: 700; line-height: 1; }
 .grade-max { color: #6b7280; }
 table { width: 100%; border-collapse: collapse; margin-bottom: 14px; table-layout: fixed; }
@@ -25,8 +25,12 @@ td.cell.selected { color: #1f2933; font-weight: 600; }
 .comment { margin-bottom: 10px; }
 .comment h2 { font-size: 11pt; margin: 0 0 4px; }
 .comment-item { margin-bottom: 6px; }
-.comment-item strong { display: block; }
+.comment-item > strong { display: block; }
 .text { white-space: pre-wrap; }
 .note { margin-top: 14px; color: #6b7280; font-size: 8.5pt; }
-.obtenu { font-weight: 600; }
+.obtenu { font-weight: 600; margin: 4px 0 6px; }
+.pastille { padding: 2px 8px; border-radius: 3px; }
+.remarque { margin-top: 6px; }
+.remarque > strong { display: block; }
+.annexe { break-before: page; }
 </style>

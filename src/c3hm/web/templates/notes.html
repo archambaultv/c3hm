@@ -10,6 +10,7 @@
         </p>
     </div>
     <nav class="pager">
+        <button type="button" class="btn" onclick="actualiser('{{ subject.base }}/notes')">Actualiser</button>
         {% if student %}<a class="btn" href="{{ url_for('feedback_preview', key=student.matricule) }}" target="_blank">Rétroaction</a>{% endif %}
         {% if subject.previous %}<a class="btn" href="{{ subject.previous[1] }}">← {{ subject.previous[0] }}</a>{% endif %}
         {% if subject.following %}<a class="btn" href="{{ subject.following[1] }}">{{ subject.following[0] }} →</a>{% endif %}
@@ -33,6 +34,23 @@
 </nav>
 {% endif %}
 
-<div id="banniere"></div>
 {% include "partials/notes.html" %}
+<script>
+    // Champs modifiés dont la dernière valeur n'est pas encore enregistrée (délai de saisie ou requête en cours).
+    const nonEnregistres = new Set();
+    document.addEventListener("input", (e) => { if (e.target.closest("#notes")) nonEnregistres.add(e.target); });
+    document.addEventListener("htmx:beforeRequest", (e) => { e.detail.elt.dataset.envoye = e.detail.elt.value; });
+    document.addEventListener("htmx:afterRequest", (e) => {
+        const elt = e.detail.elt;
+        if (e.detail.successful && elt.value === elt.dataset.envoye) nonEnregistres.delete(elt);
+    });
+
+    function actualiser(url) {
+        if (nonEnregistres.size && !confirm("Des modifications ne sont pas encore enregistrées et seront perdues. Actualiser quand même ?")) return;
+        nonEnregistres.clear();
+        htmx.ajax("GET", url, { target: "#notes", swap: "outerHTML" });
+    }
+
+    window.addEventListener("beforeunload", (e) => { if (nonEnregistres.size) e.preventDefault(); });
+</script>
 {% endblock %}

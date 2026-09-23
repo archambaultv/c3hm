@@ -355,11 +355,6 @@ def create_app(workspace: Workspace) -> Flask:
         else:
             workspace.save_team_notes(subject.key, notes)
 
-    def _version(subject: Subject) -> str:
-        if subject.kind == "etudiant":
-            return workspace.notes_version(matricule=subject.key, team=subject.team)
-        return workspace.notes_version(team=subject.key)
-
     def _notes_context(subject: Subject, **extra) -> dict:
         evaluation = workspace.load_evaluation()
         own = _load_own(subject)
@@ -374,7 +369,6 @@ def create_app(workspace: Workspace) -> Flask:
             "own": own,
             "team_notes": team_notes,
             "grade": compute_grade(evaluation, effective),
-            "version": _version(subject),
             **extra,
         }
 
@@ -395,31 +389,30 @@ def create_app(workspace: Workspace) -> Flask:
         return render_template("notes.html", **ctx)
 
     @app.get("/<any(etudiant, equipe):kind>/<key>/notes")
-    def grading_poll(kind: str, key: str):
-        """Surveille le disque : 204 si rien n'a changé, sinon une bannière (ou la section si on recharge)."""
-        subject = _subject(kind, key)
-        if request.args.get("recharger"):
-            return render_template("partials/recharger.html", **_notes_context(subject))
-        version = _version(subject)
-        if request.args.get("v") == version:
-            return "", 204
-        return render_template("partials/banniere.html", base=subject.base, version=version)
-
-    @app.get("/<any(etudiant, equipe):kind>/<key>/surveiller")
-    def grading_poll_resume(kind: str, key: str):
-        """Reprend la surveillance en ignorant le changement signalé."""
-        subject = _subject(kind, key)
-        return render_template(
-            "partials/poll.html", base=subject.base, version=request.args.get("v", _version(subject))
-        )
+    def grading_refresh(kind: str, key: str):
+        """Relit les fichiers : utile après une modification à la main."""
+        return render_template("partials/notes.html", **_notes_context(_subject(kind, key)))
 
     @app.post("/<any(etudiant, equipe):kind>/<key>/niveau")
     def grading_set_level(kind: str, key: str):
         subject = _subject(kind, key)
         own = _load_own(subject)
-        own.set_level(request.form.get("critere", ""), request.form.get("niveau") or None)
+        criterion = request.form.get("critere", "")
+        own.set_level(criterion, request.form.get("niveau") or None)
         _save_own(subject, own)
-        return render_template("partials/grille.html", oob_poll=True, **_notes_context(subject))
+        ctx = _notes_context(subject)
+        evaluation = ctx["evaluation"]
+        crit = evaluation.criterion(criterion)
+        if evaluation.layout == "liste" and crit is not None:
+            # seule la fiche est remplacée : les commentaires en cours de saisie restent intacts
+            return render_template(
+                "partials/fiche.html",
+                crit=crit,
+                i=evaluation.criteria.index(crit),
+                oob_total=True,
+                **ctx,
+            )
+        return render_template("partials/grille.html", **ctx)
 
     @app.post("/<any(etudiant, equipe):kind>/<key>/commentaire")
     def grading_set_comment(kind: str, key: str):
@@ -427,17 +420,26 @@ def create_app(workspace: Workspace) -> Flask:
         own = _load_own(subject)
         text = request.form.get("texte", "")
         criterion = request.form.get("critere")
-        if criterion:
+        progress = request.form.get("champ") == "axe"
+        if criterion and progress:
+            own.set_progress(criterion, text)
+        elif criterion:
             own.set_comment(criterion, text)
         else:
             own.comment = text.strip()
         _save_own(subject, own)
         ctx = _notes_context(subject)
         team_notes = ctx["team_notes"]
-        inherited = team_notes is not None and (
-            bool(team_notes.comment_for(criterion)) if criterion else bool(team_notes.comment.strip())
+        if team_notes is None:
+            inherited = False
+        elif criterion:
+            inherited = bool(team_notes.progress_for(criterion) if progress else team_notes.comment_for(criterion))
+        else:
+            inherited = bool(team_notes.comment.strip())
+        # le commentaire général conditionne l'avertissement du total
+        return render_template(
+            "partials/saved.html", inherited=inherited and not text.strip(), oob_total=not criterion, **ctx
         )
-        return render_template("partials/saved.html", inherited=inherited and not text.strip(), **ctx)
 
     @app.post("/etudiant/<key>/note-ajustee")
     def grading_set_override(key: str):
@@ -451,7 +453,7 @@ def create_app(workspace: Workspace) -> Flask:
         else:
             return render_template("partials/saved.html", error="Nombre entre 0 et 100", **_notes_context(subject))
         _save_own(subject, own)
-        return render_template("partials/saved.html", oob_grille=True, **_notes_context(subject))
+        return render_template("partials/saved.html", oob_total=True, **_notes_context(subject))
 
     return app
 
