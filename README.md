@@ -37,7 +37,7 @@ tp1/
     ├── notes_omnivox.xlsx
     ├── grille.md
     ├── grille.pdf
-    ├── retroaction.zip
+    ├── Travaux.zip
     └── retroaction/
         └── Tremblay_Alice_1234567.pdf
 ```

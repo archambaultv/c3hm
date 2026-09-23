@@ -33,7 +33,7 @@ FEEDBACK_DIR = "retroaction"
 OMNIVOX_FILE = "notes_omnivox.xlsx"
 RUBRIC_MD_FILE = "grille.md"
 RUBRIC_PDF_FILE = "grille.pdf"
-ZIP_FILE = "retroaction.zip"
+ZIP_FILE = "Travaux.zip"
 
 
 class ExportError(Exception):
