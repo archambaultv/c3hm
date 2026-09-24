@@ -85,3 +85,9 @@ jobs:
           if head <= base:
               sys.exit(f"::error file=pyproject.toml::La version ({head}) doit être plus grande que celle de main ({base}).")
           PY
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Check uv.lock is up to date
+        run: uv lock --check
