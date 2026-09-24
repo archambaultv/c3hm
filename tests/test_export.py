@@ -51,3 +51,15 @@ def test_retroaction_liste_suivie_de_la_grille(graded_workspace):
     evaluation.layout = "liste"
     html = feedback_html(evaluation, item)
     assert html.index("Niveau obtenu") < html.index("Grille d'évaluation") < html.index("Pour obtenir le niveau")
+
+
+def test_markdown_assaini():
+    from c3hm.markup import render_markdown
+
+    html = render_markdown(
+        '**gras** <img src=x onerror="alert(1)"> <script>alert(2)</script> [lien](javascript:alert(3))'
+    )
+    assert "<strong>gras</strong>" in html
+    assert "onerror" not in html
+    assert "<script" not in html
+    assert "javascript:" not in html

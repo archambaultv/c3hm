@@ -2,5 +2,5 @@
 {% if inherited %}
 <div class="inherited">hérité de l'équipe</div>
 {% elif own_level and team_notes is not none and team_notes.level_for(crit.label) %}
-<button type="button" class="link" hx-post="{{ base }}/niveau" hx-vals='{{ {"critere": crit.label, "niveau": ""}|tojson }}' hx-target="#grille" hx-swap="outerHTML">↩ reprendre l'équipe</button>
+<button type="button" class="link" hx-post="{{ base }}/niveau" hx-vals='{{ {"critere": crit.label, "niveau": ""}|tojson }}' hx-target="{{ "#fiche-%d"|format(i) if evaluation.layout == "liste" else "#grille" }}" hx-swap="outerHTML">↩ reprendre l'équipe</button>
 {% endif %}

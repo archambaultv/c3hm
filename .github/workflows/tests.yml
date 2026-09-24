@@ -50,3 +50,44 @@ jobs:
       
       - name: Run format check with nox
         run: nox -s format_check
+
+  version:
+    name: Version bump
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install packaging
+        run: pip install packaging
+
+      - name: Check version is greater than main
+        run: |
+          git show origin/${{ github.base_ref }}:pyproject.toml > /tmp/base_pyproject.toml
+          python - <<'PY'
+          import sys, tomllib
+          from packaging.version import Version
+
+          with open("/tmp/base_pyproject.toml", "rb") as f:
+              base = Version(tomllib.load(f)["project"]["version"])
+          with open("pyproject.toml", "rb") as f:
+              head = Version(tomllib.load(f)["project"]["version"])
+
+          print(f"main: {base}  PR: {head}")
+          if head <= base:
+              sys.exit(f"::error file=pyproject.toml::La version ({head}) doit être plus grande que celle de main ({base}).")
+          PY
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Check uv.lock is up to date
+        run: uv lock --check
