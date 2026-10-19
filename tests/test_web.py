@@ -86,13 +86,11 @@ def test_import_de_la_liste_omnivox(client, workspace):
     assert any(s.matricule == "9999999" for s in workspace.load_students())
 
 
-def test_commentaire_et_axe_de_progression_distincts(client, workspace):
+def test_commentaire_par_critere(client, workspace):
     client.post("/etudiant/3333333/commentaire", data={"critere": "Tests", "texte": "Bien."})
-    client.post("/etudiant/3333333/commentaire", data={"critere": "Tests", "champ": "axe", "texte": "Plus de cas."})
-    notes = workspace.load_notes("3333333")
-    assert (notes.comment_for("Tests"), notes.progress_for("Tests")) == ("Bien.", "Plus de cas.")
+    assert workspace.load_notes("3333333").comment_for("Tests") == "Bien."
     texte = workspace.notes_path("3333333").read_text(encoding="utf-8")
-    assert "critères:\n  Tests:\n    commentaire: Bien.\n    axe de progression: Plus de cas.\n" in texte
+    assert "critères:\n  Tests:\n    commentaire: Bien.\n" in texte
 
 
 def test_affichage_liste_ne_remplace_que_la_fiche(client, workspace):
@@ -100,7 +98,8 @@ def test_affichage_liste_ne_remplace_que_la_fiche(client, workspace):
     evaluation.layout = "liste"
     workspace.save_evaluation(evaluation)
     page = client.get("/etudiant/3333333").get_data(as_text=True)
-    assert "Axe de progression" in page.split('id="fiche-1"')[1]  # commentaires dans la fiche
+    fiche = page.split('id="fiche-1"')[1]
+    assert "Commentaire" in fiche and "Axe de progression" not in fiche  # commentaire dans la fiche
 
     reponse = client.post("/etudiant/3333333/niveau", data={"critere": "Fonctionnalités", "niveau": "Acquis"})
     html = reponse.get_data(as_text=True)

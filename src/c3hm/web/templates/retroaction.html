@@ -20,9 +20,6 @@
     {% if notes.comment_for(crit.label) %}
     <div class="remarque"><strong>Commentaire</strong><div class="texte">{{ notes.comment_for(crit.label)|md }}</div></div>
     {% endif %}
-    {% if notes.progress_for(crit.label) %}
-    <div class="remarque"><strong>Axe de progression</strong><div class="texte">{{ notes.progress_for(crit.label)|md }}</div></div>
-    {% endif %}
 </section>
 {% endfor %}
 {% else %}
@@ -51,15 +48,14 @@
 {% endif %}
 
 {% set commented = [] %}
-{% for crit in evaluation.criteria %}{% if notes.comment_for(crit.label) or notes.progress_for(crit.label) %}{% set _ = commented.append(crit) %}{% endif %}{% endfor %}
+{% for crit in evaluation.criteria %}{% if notes.comment_for(crit.label) %}{% set _ = commented.append(crit) %}{% endif %}{% endfor %}
 {% if commented and evaluation.layout != "liste" %}
 <div class="comment">
     <h2>Commentaires par critère</h2>
     {% for crit in commented %}
     <div class="comment-item">
         <strong>{{ crit.label }}</strong>
-        {% if notes.comment_for(crit.label) %}<div class="texte">{{ notes.comment_for(crit.label)|md }}</div>{% endif %}
-        {% if notes.progress_for(crit.label) %}<em>Axe de progression</em><div class="texte">{{ notes.progress_for(crit.label)|md }}</div>{% endif %}
+        <div class="texte">{{ notes.comment_for(crit.label)|md }}</div>
     </div>
     {% endfor %}
 </div>

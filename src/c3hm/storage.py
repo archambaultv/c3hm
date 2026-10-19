@@ -4,8 +4,8 @@ Accès aux fichiers d'un dossier d'évaluation (« workspace »).
 Un dossier d'évaluation contient :
 - evaluation.yaml : cours, session, évaluation, échelle, critères
 - etudiants.yaml : liste des étudiants (matricule, prénom, nom, équipe)
-- notes/<Nom>_<Prénom>_<matricule>.yaml : par critère (niveau, commentaire, axe de progression),
-  commentaire général et note ajustée d'un étudiant
+- notes/<Nom>_<Prénom>_<matricule>.yaml : par critère (niveau, commentaire), commentaire général
+  et note ajustée d'un étudiant
 - notes/equipes/<équipe>.yaml : niveaux et commentaires d'une équipe, hérités par ses membres
 """
 

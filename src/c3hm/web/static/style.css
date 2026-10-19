@@ -125,7 +125,6 @@ button.link { border: none; background: none; padding: 0; color: var(--primary);
 .grille td ul { padding-left: 16px; }
 .descriptors-wide { grid-template-columns: 1fr; }
 select { font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; background: #fff; }
-.fiche-comments { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.fiche-comments { margin-top: 8px; }
 .fiche-comments label { margin-bottom: 0; }
 .crit-comments { margin-bottom: 14px; }
-@media (max-width: 700px) { .fiche-comments { grid-template-columns: 1fr; } }

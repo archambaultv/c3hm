@@ -420,10 +420,7 @@ def create_app(workspace: Workspace) -> Flask:
         own = _load_own(subject)
         text = request.form.get("texte", "")
         criterion = request.form.get("critere")
-        progress = request.form.get("champ") == "axe"
-        if criterion and progress:
-            own.set_progress(criterion, text)
-        elif criterion:
+        if criterion:
             own.set_comment(criterion, text)
         else:
             own.comment = text.strip()
@@ -433,7 +430,7 @@ def create_app(workspace: Workspace) -> Flask:
         if team_notes is None:
             inherited = False
         elif criterion:
-            inherited = bool(team_notes.progress_for(criterion) if progress else team_notes.comment_for(criterion))
+            inherited = bool(team_notes.comment_for(criterion))
         else:
             inherited = bool(team_notes.comment.strip())
         # le commentaire général conditionne l'avertissement du total

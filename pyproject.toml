@@ -1,6 +1,6 @@
 [project]
 name = "c3hm"
-version = "1.1.1"
+version = "1.2.0"
 description = "Correction par grille d'évaluation, avec interface web locale"
 readme = "README.md"
 authors = [
