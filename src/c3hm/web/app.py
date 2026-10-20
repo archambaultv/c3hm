@@ -412,7 +412,7 @@ def create_app(workspace: Workspace) -> Flask:
                 oob_total=True,
                 **ctx,
             )
-        return render_template("partials/grille.html", **ctx)
+        return render_template("partials/grille.html", oob_total=True, **ctx)
 
     @app.post("/<any(etudiant, equipe):kind>/<key>/commentaire")
     def grading_set_comment(kind: str, key: str):

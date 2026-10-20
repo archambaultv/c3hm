@@ -11,6 +11,13 @@
 <h1>{{ student.fullname() }}</h1>
 <p class="sub">{{ evaluation.title }} — {{ evaluation.course }} — {{ evaluation.session }}</p>
 
+{% if notes.comment.strip() %}
+<div class="comment">
+    <h2>Commentaire général</h2>
+    <div class="texte">{{ notes.comment|md }}</div>
+</div>
+{% endif %}
+
 {% if evaluation.layout == "liste" %}
 {% for crit in evaluation.criteria %}
 {% set res = grade.result_for(crit) %}
@@ -58,13 +65,6 @@
         <div class="texte">{{ notes.comment_for(crit.label)|md }}</div>
     </div>
     {% endfor %}
-</div>
-{% endif %}
-
-{% if notes.comment.strip() %}
-<div class="comment">
-    <h2>Commentaire général</h2>
-    <div class="texte">{{ notes.comment|md }}</div>
 </div>
 {% endif %}
 

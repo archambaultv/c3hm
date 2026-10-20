@@ -1,10 +1,32 @@
 <section id="notes">
+    {# Note globale, note ajustée et commentaire général en tête ; hors de #grille pour ne pas écraser la saisie. #}
+    <div class="synthese">
+        <div class="synthese-head">
+            {% include "partials/total.html" %}
+            {% if subject.kind == "etudiant" %}
+            <label class="override">
+                <span>Note ajustée <span id="saved-override" class="saved-status"></span></span>
+                <input name="note" value="{{ notes.override if notes.override is not none else '' }}" inputmode="decimal" class="num"
+                       hx-post="{{ base }}/note-ajustee"
+                       hx-trigger="input changed delay:800ms"
+                       hx-target="#saved-override" hx-swap="innerHTML">
+            </label>
+            {% endif %}
+        </div>
+        {% set inherited = team_notes is not none and not own.comment.strip() and team_notes.comment.strip() %}
+        <label>
+            <span><strong>Commentaire général</strong> <span id="saved-global" class="saved-status">{% if inherited %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
+            <textarea rows="4" name="texte"
+                      hx-post="{{ base }}/commentaire"
+                      hx-trigger="input changed delay:800ms"
+                      hx-target="#saved-global" hx-swap="innerHTML">{{ notes.comment }}</textarea>
+        </label>
+    </div>
+
     {% include "partials/grille.html" %}
 
+    {% if evaluation.layout != "liste" %}
     <fieldset class="comments">
-        {% if evaluation.layout == "liste" %}
-        <legend>Général</legend>
-        {% else %}
         <legend>Commentaires</legend>
         {% for crit in evaluation.criteria %}
         {% set i = loop.index0 %}
@@ -15,24 +37,7 @@
             </div>
         </div>
         {% endfor %}
-        {% endif %}
-        {% set inherited = team_notes is not none and not own.comment.strip() and team_notes.comment.strip() %}
-        <label>
-            <span><strong>Commentaire général</strong> <span id="saved-global" class="saved-status">{% if inherited %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
-            <textarea rows="4" name="texte"
-                      hx-post="{{ base }}/commentaire"
-                      hx-trigger="input changed delay:800ms"
-                      hx-target="#saved-global" hx-swap="innerHTML">{{ notes.comment }}</textarea>
-        </label>
-        {% if subject.kind == "etudiant" %}
-        <label class="override">
-            <span>Note ajustée <span id="saved-override" class="saved-status"></span></span>
-            <input name="note" value="{{ notes.override if notes.override is not none else '' }}" inputmode="decimal" class="num"
-                   hx-post="{{ base }}/note-ajustee"
-                   hx-trigger="input changed delay:800ms"
-                   hx-target="#saved-override" hx-swap="innerHTML">
-        </label>
-        {% endif %}
     </fieldset>
+    {% endif %}
 
 </section>

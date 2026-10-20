@@ -1,7 +1,7 @@
 {# Commentaire d'un critère ; attend crit et i. #}
 <label>
     <span>Commentaire <span id="saved-{{ i }}" class="saved-status">{% if not own.comment_for(crit.label) and team_notes is not none and team_notes.comment_for(crit.label) %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
-    <textarea rows="3" name="texte"
+    <textarea rows="4" name="texte"
               hx-post="{{ base }}/commentaire"
               hx-vals='{{ {"critere": crit.label}|tojson }}'
               hx-trigger="input changed delay:800ms"

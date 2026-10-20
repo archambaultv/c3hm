@@ -85,6 +85,10 @@ textarea { resize: vertical; }
 @keyframes fade-out { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 .saved-error { color: var(--error); font-size: 0.8rem; }
 .override input { width: 6em; }
+.synthese { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; }
+.synthese-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+.synthese .override { display: flex; align-items: center; gap: 8px; margin: 0; }
+.total { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .inherited { color: var(--muted); font-size: 0.8rem; font-style: italic; font-weight: normal; }
 .inherited-cell .check { color: var(--muted); }
 button.link { border: none; background: none; padding: 0; color: var(--primary); font-size: 0.8rem; font-weight: normal; }
@@ -103,7 +107,6 @@ button.link { border: none; background: none; padding: 0; color: var(--primary);
 .fermer:hover { opacity: 1; }
 
 /* Affichage « liste » : une fiche par critère */
-.total { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .fiche { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
 .fiche-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
 .fiche-head h2 { margin: 0; font-size: 1.1rem; }
