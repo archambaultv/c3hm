@@ -11,6 +11,7 @@ Un dossier d'évaluation contient :
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,20 @@ class Workspace:
 
     def __init__(self, root: Path | str):
         self.root = Path(root).resolve()
+
+    def fingerprint(self) -> str:
+        """Empreinte des fichiers YAML : change dès qu'un fichier est modifié, ajouté ou supprimé."""
+        notes_dir = self.root / self.NOTES_DIR
+        paths = [self.evaluation_path, self.students_path]
+        paths += sorted(notes_dir.glob("*.yaml")) + sorted((notes_dir / self.TEAMS_DIR).glob("*.yaml"))
+        digest = hashlib.sha1()
+        for path in paths:
+            try:
+                content = path.read_bytes()
+            except OSError:
+                continue  # absent, ou supprimé entre-temps
+            digest.update(path.relative_to(self.root).as_posix().encode() + b"\0" + content + b"\0")
+        return digest.hexdigest()[:16]
 
     # --- evaluation.yaml -----------------------------------------------------
 

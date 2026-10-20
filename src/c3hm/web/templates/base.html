@@ -35,7 +35,7 @@
         });
     </script>
 </head>
-<body>
+<body hx-sync="this:queue all">
 <header>
     <div class="container header-row">
         <a href="{{ url_for('index') }}" class="brand"><strong>c3hm</strong> <span class="muted">Corriger à 3 heures du matin</span></a>
@@ -44,11 +44,140 @@
             <a href="{{ url_for('evaluation_edit') }}">Grille</a>
             <a href="{{ url_for('students_page') }}">Étudiants</a>
             <a href="{{ url_for('exports_page') }}">Exports</a>
+            <span id="sync" class="sync" data-etat="ok" title="Les fichiers sont relus dès qu'ils changent sur le disque."><span class="sync-point"></span><span id="sync-texte">À jour</span></span>
         </nav>
     </div>
 </header>
 <main class="container">
+    <div id="perime" class="alert alert-error banniere" hidden>
+        <span id="perime-texte"></span>
+        <button type="button" class="btn" onclick="recharger(false)">Recharger</button>
+    </div>
     {% block content %}{% endblock %}
 </main>
+<script>
+    // --- Synchronisation avec le disque ---------------------------------------------------------
+    // La page se recharge seule quand les fichiers changent sur le disque, sauf si elle contient
+    // une saisie non enregistrée : une bannière le signale alors, et le serveur refuse d'écraser.
+
+    // Version des fichiers affichés ; mise à jour par chaque enregistrement accepté.
+    let version = {{ version|tojson }};
+    // Champs à enregistrement automatique dont la dernière valeur n'est pas encore enregistrée.
+    const nonEnregistres = new Set();
+    // Contenu des formulaires form[data-brouillon] tel qu'il est sur le disque.
+    const references = new Map();
+    let enCours = 0;
+    let generation = 0;
+    let abandon = false;
+
+    function serialiser(form) { return new URLSearchParams(new FormData(form)).toString(); }
+
+    function memoriserReferences() {
+        document.querySelectorAll("form[data-brouillon][data-intact]").forEach((form) => {
+            references.set(form.id, serialiser(form));
+            form.removeAttribute("data-intact");
+        });
+        majBoutons();
+    }
+
+    function brouillonModifie(form) { return serialiser(form) !== references.get(form.id); }
+
+    function modifie() {
+        return nonEnregistres.size > 0 || [...document.querySelectorAll("form[data-brouillon]")].some(brouillonModifie);
+    }
+
+    // Le bouton d'enregistrement n'est actif que si le formulaire diffère du disque.
+    function majBoutons() {
+        document.querySelectorAll("form[data-brouillon]").forEach((form) => {
+            const bouton = form.querySelector("[data-enregistrer]");
+            if (!bouton) return;
+            const actif = brouillonModifie(form);
+            bouton.disabled = !actif;
+            bouton.textContent = actif ? "Enregistrer" : "✓ Enregistré";
+        });
+    }
+
+    function afficherEtat(etat, texte) {
+        document.getElementById("sync").dataset.etat = etat;
+        document.getElementById("sync-texte").textContent = texte;
+        if (etat !== "perime") document.getElementById("perime").hidden = true;
+    }
+
+    function signalerPerime(message) {
+        afficherEtat("perime", "Modifié sur le disque");
+        document.getElementById("perime-texte").textContent = message;
+        document.getElementById("perime").hidden = false;
+    }
+
+    function recharger(automatique) {
+        abandon = true;
+        try { if (automatique) sessionStorage.setItem("c3hm-maj", "1"); } catch (e) {}
+        location.reload();
+    }
+
+    async function verifier() {
+        if (enCours || abandon) return;
+        const depart = generation;
+        let disque;
+        try {
+            const reponse = await fetch({{ url_for('state')|tojson }}, { cache: "no-store" });
+            disque = (await reponse.json()).version;
+        } catch (e) {
+            afficherEtat("hors-ligne", "Serveur arrêté");
+            return;
+        }
+        if (enCours || depart !== generation) return;  // un enregistrement a eu lieu entre-temps
+        const etat = document.getElementById("sync").dataset.etat;
+        if (disque === version) {
+            if (etat === "perime" || etat === "hors-ligne") afficherEtat("ok", "À jour");
+        } else if (modifie()) {
+            signalerPerime("Des fichiers ont été modifiés sur le disque, mais cette page contient une saisie non enregistrée. Recharger la remplacera par la version du disque.");
+        } else {
+            recharger(true);
+        }
+    }
+
+    document.addEventListener("input", (e) => {
+        if (e.target.matches("[hx-post]") && !e.target.closest("form[data-brouillon]")) nonEnregistres.add(e.target);
+        if (e.target.closest("form[data-brouillon]")) majBoutons();
+    });
+    document.addEventListener("change", (e) => { if (e.target.closest("form[data-brouillon]")) majBoutons(); });
+    document.addEventListener("htmx:configRequest", (e) => { e.detail.headers["X-C3hm-Version"] = version; });
+    document.addEventListener("htmx:beforeRequest", (e) => {
+        enCours++;
+        generation++;
+        e.detail.elt.dataset.envoye = e.detail.elt.value;
+    });
+    document.addEventListener("htmx:afterRequest", (e) => {
+        const xhr = e.detail.xhr;
+        const elt = e.detail.elt;
+        const nouvelle = xhr.getResponseHeader("X-C3hm-Version");
+        if (nouvelle) version = nouvelle;
+        if (xhr.status === 409) {
+            signalerPerime("Enregistrement refusé : des fichiers ont été modifiés sur le disque depuis l'affichage de cette page. Recharger reprendra la version du disque, sans votre dernière saisie.");
+        } else if (e.detail.successful && elt.value === elt.dataset.envoye) {
+            nonEnregistres.delete(elt);
+        }
+        enCours = Math.max(0, enCours - 1);
+    });
+    document.addEventListener("click", (e) => { if (e.target.closest("[data-abandonner]")) abandon = true; });
+    window.addEventListener("beforeunload", (e) => { if (!abandon && modifie()) e.preventDefault(); });
+
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) verifier(); });
+    window.addEventListener("focus", verifier);
+    setInterval(() => { if (!document.hidden) verifier(); }, 5000);
+
+    memoriserReferences();
+    document.body.addEventListener("htmx:load", memoriserReferences);
+    let misAJour = false;
+    try {
+        misAJour = sessionStorage.getItem("c3hm-maj") === "1";
+        sessionStorage.removeItem("c3hm-maj");
+    } catch (e) {}
+    if (misAJour) {
+        afficherEtat("maj", "Mis à jour depuis le disque");
+        setTimeout(() => { if (document.getElementById("sync").dataset.etat === "maj") afficherEtat("ok", "À jour"); }, 5000);
+    }
+</script>
 </body>
 </html>

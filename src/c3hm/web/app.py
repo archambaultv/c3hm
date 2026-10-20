@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Timer
 
-from flask import Flask, abort, redirect, render_template, request, url_for
+from flask import Flask, abort, g, redirect, render_template, request, url_for
 
 from c3hm.export import (
     ExportError,
@@ -35,7 +35,7 @@ from c3hm.model import (
     teams,
 )
 from c3hm.omnivox import OmnivoxError, decode_csv, merge_students, parse_students_csv
-from c3hm.storage import Workspace, WorkspaceError, dump_yaml
+from c3hm.storage import Workspace, WorkspaceError
 from c3hm.web.forms import apply_action, parse_evaluation_form, parse_number
 
 
@@ -44,6 +44,9 @@ def run_server(root: Path, port: int, open_browser: bool = True) -> None:
     if open_browser:
         Timer(1.0, lambda: webbrowser.open(f"http://localhost:{port}")).start()
     app.run(host="localhost", port=port, debug=False)
+
+
+VERSION_HEADER = "X-C3hm-Version"
 
 
 @dataclass
@@ -78,7 +81,37 @@ def create_app(workspace: Workspace) -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"workspace": workspace, "level_color": level_color, "round_half_up": round_half_up}
+        return {
+            "workspace": workspace,
+            "level_color": level_color,
+            "round_half_up": round_half_up,
+            "version": g.get("version", ""),
+        }
+
+    # --- synchronisation avec le disque ----------------------------------------
+    # Chaque page connaît la version des fichiers qu'elle affiche (empreinte prise avant de les lire).
+    # Une écriture basée sur une version périmée est refusée : elle écraserait une modification
+    # faite directement dans les fichiers. Une écriture acceptée renvoie la nouvelle version.
+
+    @app.before_request
+    def check_version():
+        if request.endpoint == "static":
+            return None
+        g.version = workspace.fingerprint()
+        sent = request.headers.get(VERSION_HEADER)
+        if request.method == "POST" and sent and sent != g.version:
+            return "Des fichiers ont été modifiés sur le disque.", 409
+        return None
+
+    @app.after_request
+    def send_version(response):
+        if request.method == "POST" and response.status_code == 200:
+            response.headers[VERSION_HEADER] = workspace.fingerprint()
+        return response
+
+    @app.get("/etat")
+    def state():
+        return {"version": g.version}
 
     app.jinja_env.filters["md"] = render_markdown
 
@@ -388,11 +421,6 @@ def create_app(workspace: Workspace) -> Flask:
             return render_template("notes_error.html", subject=subject, error=str(e))
         return render_template("notes.html", **ctx)
 
-    @app.get("/<any(etudiant, equipe):kind>/<key>/notes")
-    def grading_refresh(kind: str, key: str):
-        """Relit les fichiers : utile après une modification à la main."""
-        return render_template("partials/notes.html", **_notes_context(_subject(kind, key)))
-
     @app.post("/<any(etudiant, equipe):kind>/<key>/niveau")
     def grading_set_level(kind: str, key: str):
         subject = _subject(kind, key)
@@ -469,5 +497,4 @@ def _form_context(
         "errors": errors,
         "saved": saved,
         "affected": affected or [],
-        "yaml_text": dump_yaml(evaluation.to_dict()),
     }

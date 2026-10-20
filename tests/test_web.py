@@ -73,10 +73,42 @@ def test_grille_invalide_refusee(client, workspace):
     assert workspace.load_evaluation().title == "TP1"  # inchangée
 
 
-def test_actualiser_relit_les_fichiers(graded_client, graded_workspace):
+def test_une_modification_sur_le_disque_change_la_version(graded_client, graded_workspace):
+    avant = graded_client.get("/etat").get_json()["version"]
+    assert f'let version = "{avant}";' in graded_client.get("/etudiant/3333333").get_data(as_text=True)
+
     graded_workspace.save_notes("3333333", Notes(comment="Modifié à la main."))
-    page = graded_client.get("/etudiant/3333333/notes").get_data(as_text=True)
-    assert "Modifié à la main." in page
+    apres = graded_client.get("/etat").get_json()["version"]
+    assert apres != avant
+    page = graded_client.get("/etudiant/3333333").get_data(as_text=True)
+    assert "Modifié à la main." in page and f'let version = "{apres}";' in page
+
+
+def test_enregistrer_sur_une_version_perimee_est_refuse(graded_client, graded_workspace):
+    version = graded_client.get("/etat").get_json()["version"]
+    graded_workspace.save_notes("3333333", Notes(comment="Modifié à la main."))
+
+    reponse = graded_client.post(
+        "/etudiant/3333333/commentaire", data={"texte": "Écrasé ?"}, headers={"X-C3hm-Version": version}
+    )
+    assert reponse.status_code == 409
+    assert graded_workspace.load_notes("3333333").comment == "Modifié à la main."
+
+
+def test_enregistrer_renvoie_la_nouvelle_version(graded_client, graded_workspace):
+    version = graded_client.get("/etat").get_json()["version"]
+    reponse = graded_client.post(
+        "/etudiant/3333333/commentaire", data={"texte": "Nouveau."}, headers={"X-C3hm-Version": version}
+    )
+    assert reponse.status_code == 200
+    assert graded_workspace.load_notes("3333333").comment == "Nouveau."
+    assert reponse.headers["X-C3hm-Version"] == graded_workspace.fingerprint() != version
+
+
+def test_la_grille_lue_du_disque_sert_de_reference(client):
+    page = client.get("/evaluation").get_data(as_text=True)
+    assert "data-brouillon data-intact" in page
+    assert "data-enregistrer disabled>✓ Enregistré" in page
 
 
 def test_import_de_la_liste_omnivox(client, workspace):
