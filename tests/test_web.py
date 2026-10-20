@@ -90,7 +90,7 @@ def test_commentaire_par_critere(client, workspace):
     client.post("/etudiant/3333333/commentaire", data={"critere": "Tests", "texte": "Bien."})
     assert workspace.load_notes("3333333").comment_for("Tests") == "Bien."
     texte = workspace.notes_path("3333333").read_text(encoding="utf-8")
-    assert "critères:\n  Tests:\n    commentaire: Bien.\n" in texte
+    assert "  Tests:\n    niveau: null\n    commentaire: Bien.\n" in texte
 
 
 def test_affichage_liste_ne_remplace_que_la_fiche(client, workspace):

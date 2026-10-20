@@ -70,3 +70,22 @@ def test_fichier_de_notes_nomme_comme_la_retroaction(workspace):
     workspace.save_notes("1111111", workspace.load_notes("1111111"))
     assert not ancien.exists()
     assert workspace.notes_path("1111111").name == "Tremblay_Alice_1111111.yaml"
+
+
+def test_cles_non_applicables_ecrites_a_null(workspace, evaluation):
+    # toutes les clés figurent dans les fichiers générés, pour faciliter la modification à la main
+    workspace.save_students([Student("1", "Alice", "Tremblay")])
+    assert "équipe: null" in workspace.students_path.read_text(encoding="utf-8")
+
+    workspace.save_notes("1111111", Notes(levels={"Tests": "Acquis"}))
+    texte = workspace.notes_path("1111111").read_text(encoding="utf-8")
+    for crit in evaluation.criteria:
+        assert f"  {crit.label}:\n    niveau: " in texte
+    assert "commentaire: null\nnote ajustée: null\n" in texte
+    assert workspace.load_notes("1111111") == Notes(levels={"Tests": "Acquis"})
+
+    workspace.save_evaluation(evaluation)
+    texte = workspace.evaluation_path.read_text(encoding="utf-8")
+    assert texte.count("descripteurs:") == len(evaluation.criteria)
+    assert ": null" in texte
+    assert workspace.load_evaluation() == evaluation

@@ -133,6 +133,14 @@ class Workspace:
 
     # --- notes/<Nom>_<Prénom>_<matricule>.yaml -------------------------------
 
+    def _criteria_labels(self) -> list[str]:
+        """Critères de l'évaluation, écrits dans chaque fichier de notes ; aucun si evaluation.yaml est illisible."""
+        try:
+            evaluation = self.load_evaluation()
+        except WorkspaceError:
+            return []
+        return [c.label for c in evaluation.criteria if c.label]
+
     def _notes_filename(self, matricule: str) -> str:
         """Nom attendu d'après etudiants.yaml, comme la rétroaction ; le matricule seul si l'étudiant est inconnu."""
         try:
@@ -169,7 +177,7 @@ class Workspace:
         path = self.root / self.NOTES_DIR / self._notes_filename(matricule)
         old = self._existing_notes_path(matricule)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(dump_yaml(notes.to_dict()), encoding="utf-8")
+        path.write_text(dump_yaml(notes.to_dict(self._criteria_labels())), encoding="utf-8")
         if old is not None and old != path:
             old.unlink()
 
@@ -194,7 +202,7 @@ class Workspace:
     def save_team_notes(self, team: str, notes: Notes) -> None:
         path = self.team_notes_path(team)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(dump_yaml(notes.to_dict()), encoding="utf-8")
+        path.write_text(dump_yaml(notes.to_dict(self._criteria_labels())), encoding="utf-8")
 
     def team_notes_names(self) -> list[str]:
         """Équipes ayant un fichier de notes."""
