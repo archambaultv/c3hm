@@ -232,3 +232,46 @@ class Workspace:
         if not notes_dir.is_dir():
             return []
         return sorted(_matricule_of(p.stem) for p in notes_dir.glob("*.yaml"))
+
+    def create_notes(self, force: bool = False) -> list[Path]:
+        """
+        Crée un fichier de notes vide (tous les critères, valeurs à null) pour chaque étudiant et chaque
+        équipe d'etudiants.yaml qui n'en a pas, afin de pouvoir les remplir directement dans un éditeur.
+        Les fichiers existants ne sont pas modifiés, sauf avec force : ils sont alors tous remplacés par des
+        fichiers vides. Rien n'est écrit tant que l'évaluation n'a pas de critères ou que la liste d'étudiants
+        est illisible. Retourne les fichiers écrits.
+        """
+        labels = self._criteria_labels()
+        if not labels:
+            return []
+        try:
+            students = self.load_students()
+        except WorkspaceError:
+            return []
+        content = dump_yaml(Notes().to_dict(labels))
+        notes_dir = self.root / self.NOTES_DIR
+        existing: dict[str, Path] = {}
+        for path in sorted(notes_dir.glob("*.yaml")):
+            existing.setdefault(_matricule_of(path.stem), path)
+        written = []
+        for student in students:
+            old = existing.get(student.matricule)
+            if old is not None and not force:
+                continue
+            path = notes_dir / f"{safe_filename(student)}.yaml"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            if old is not None and old != path:
+                old.unlink()  # ancien nom
+            written.append(path)
+        for team in sorted({s.team for s in students if s.team}):
+            try:
+                path = self.team_notes_path(team)
+            except WorkspaceError:
+                continue  # nom d'équipe invalide : signalé ailleurs
+            if path.exists() and not force:
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            written.append(path)
+        return written

@@ -19,3 +19,6 @@ def import_students_command(csv_file: Path, directory: Path):
     except (OmnivoxError, WorkspaceError) as e:
         raise click.ClickException(str(e)) from e
     click.echo(f"{len(imported)} étudiant(s) lus, {new_count} nouveau(x). Enregistré : {workspace.students_path}")
+    created = workspace.create_notes()
+    if created:
+        click.echo(f"{len(created)} fichier(s) de notes créé(s) dans {workspace.root / Workspace.NOTES_DIR}")

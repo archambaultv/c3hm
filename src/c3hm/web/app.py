@@ -92,11 +92,13 @@ def create_app(workspace: Workspace) -> Flask:
     # Chaque page connaît la version des fichiers qu'elle affiche (empreinte prise avant de les lire).
     # Une écriture basée sur une version périmée est refusée : elle écraserait une modification
     # faite directement dans les fichiers. Une écriture acceptée renvoie la nouvelle version.
+    # Les fichiers de notes manquants (étudiant ou équipe ajouté) sont d'abord créés.
 
     @app.before_request
     def check_version():
         if request.endpoint == "static":
             return None
+        workspace.create_notes()
         g.version = workspace.fingerprint()
         sent = request.headers.get(VERSION_HEADER)
         if request.method == "POST" and sent and sent != g.version:

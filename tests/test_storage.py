@@ -89,3 +89,36 @@ def test_cles_non_applicables_ecrites_a_null(workspace, evaluation):
     assert texte.count("descripteurs:") == len(evaluation.criteria)
     assert ": null" in texte
     assert workspace.load_evaluation() == evaluation
+
+
+def test_fichiers_de_notes_manquants_crees(workspace, evaluation):
+    workspace.save_notes("3333333", Notes(levels={"Tests": "Acquis"}))
+    crees = workspace.create_notes()
+    assert sorted(p.name for p in crees) == ["A.yaml", "Roy_Bob_2222222.yaml", "Tremblay_Alice_1111111.yaml"]
+    texte = (workspace.root / "notes" / "equipes" / "A.yaml").read_text(encoding="utf-8")
+    for crit in evaluation.criteria:
+        assert f"  {crit.label}:\n    niveau: null\n    commentaire: null\n" in texte
+    assert workspace.load_notes("1111111") == Notes()
+    assert workspace.load_notes("3333333").level_for("Tests") == "Acquis"  # fichier existant intact
+    assert workspace.create_notes() == []
+
+
+def test_aucun_fichier_de_notes_sans_criteres(tmp_path, students):
+    ws = Workspace(tmp_path)
+    ws.save_students(students)
+    assert ws.create_notes() == []
+    assert not (tmp_path / "notes").exists()
+
+
+def test_regenerer_les_fichiers_de_notes_avec_force(workspace):
+    workspace.create_notes()
+    workspace.save_notes("3333333", Notes(levels={"Tests": "Acquis"}))
+    workspace.save_team_notes("A", Notes(comment="Bien."))
+    ancien = workspace.root / "notes" / "1111111.yaml"
+    workspace.notes_path("1111111").rename(ancien)
+
+    assert len(workspace.create_notes(force=True)) == 4
+    assert workspace.load_notes("3333333") == Notes()
+    assert workspace.load_team_notes("A") == Notes()
+    assert not ancien.exists()
+    assert workspace.notes_path("1111111").name == "Tremblay_Alice_1111111.yaml"

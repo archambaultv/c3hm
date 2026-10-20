@@ -2,7 +2,7 @@
 
 import io
 
-from c3hm.model import Notes
+from c3hm.model import Notes, Student
 
 
 def test_cliquer_un_niveau_enregistre_et_recalcule(client, workspace):
@@ -147,3 +147,12 @@ def test_reprendre_lequipe_en_liste_ne_remplace_que_la_fiche(client, graded_work
     page = client.get("/etudiant/1111111").get_data(as_text=True)
     bouton = page.split("↩ reprendre l'équipe")[0].rsplit("<button", 1)[1]
     assert f'hx-target="#fiche-{i}"' in bouton
+
+
+def test_un_etudiant_ajoute_sur_le_disque_a_son_fichier_de_notes(client, workspace):
+    client.get("/")
+    assert workspace.notes_matricules() == ["1111111", "2222222", "3333333"]
+    workspace.save_students([*workspace.load_students(), Student("4444444", "David", "Nguyen", team="B")])
+    client.get("/etat")
+    assert workspace.notes_path("4444444").is_file()
+    assert workspace.team_notes_names() == ["A", "B"]
