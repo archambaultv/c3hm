@@ -47,6 +47,7 @@ def run_server(root: Path, port: int, open_browser: bool = True) -> None:
 
 
 VERSION_HEADER = "X-C3hm-Version"
+HIDE_GRADES_COOKIE = "c3hm-notes-masquees"
 
 
 @dataclass
@@ -164,7 +165,18 @@ def create_app(workspace: Workspace) -> Flask:
             groups=groups,
             students_error=students_error,
             graded_count=graded_count,
+            hide_grades=request.cookies.get(HIDE_GRADES_COOKIE) == "1",
         )
+
+    @app.post("/notes-masquees")
+    def toggle_hidden_grades():
+        """Masque ou affiche les notes de l'accueil, p. ex. pendant un entretien avec un étudiant."""
+        response = redirect(url_for("index"))
+        if request.cookies.get(HIDE_GRADES_COOKIE) == "1":
+            response.delete_cookie(HIDE_GRADES_COOKIE)
+        else:
+            response.set_cookie(HIDE_GRADES_COOKIE, "1", max_age=365 * 24 * 3600, samesite="Lax")
+        return response
 
     # --- évaluation ----------------------------------------------------------
 

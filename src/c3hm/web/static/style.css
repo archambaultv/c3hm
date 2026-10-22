@@ -31,6 +31,7 @@ code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-si
 button { font: inherit; cursor: pointer; }
 button:disabled { opacity: 0.4; cursor: default; }
 button.danger { color: var(--error); }
+form.inline { display: inline; }
 button.secondary { color: var(--muted); }
 fieldset { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px 16px; margin: 0 0 20px; }
 legend { font-weight: 600; padding: 0 6px; }

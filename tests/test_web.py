@@ -156,3 +156,15 @@ def test_un_etudiant_ajoute_sur_le_disque_a_son_fichier_de_notes(client, workspa
     client.get("/etat")
     assert workspace.notes_path("4444444").is_file()
     assert workspace.team_notes_names() == ["A", "B"]
+
+
+def test_masquer_les_notes_de_laccueil(graded_client):
+    assert "<th>Note</th>" in graded_client.get("/").get_data(as_text=True)
+
+    graded_client.post("/notes-masquees")
+    page = graded_client.get("/").get_data(as_text=True)
+    assert "<th>Note</th>" not in page
+    assert "Afficher les notes" in page
+
+    graded_client.post("/notes-masquees")
+    assert "<th>Note</th>" in graded_client.get("/").get_data(as_text=True)

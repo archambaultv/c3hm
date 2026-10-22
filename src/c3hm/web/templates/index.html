@@ -34,25 +34,33 @@
 <section class="card">
     <div class="header-row">
         <h2>Correction <span class="muted">{{ graded_count }} / {{ rows|length }}</span></h2>
-        <a class="btn" href="{{ url_for('students_page') }}">{% if rows %}Étudiants{% else %}Importer les étudiants{% endif %}</a>
+        <div>
+            {% if rows %}
+            <form method="post" action="{{ url_for('toggle_hidden_grades') }}" class="inline">
+                <button class="btn" type="submit" title="Utile pendant un entretien : la recherche d'un nom ne révèle pas les notes des autres.">{% if hide_grades %}Afficher les notes{% else %}Masquer les notes{% endif %}</button>
+            </form>
+            {% endif %}
+            <a class="btn" href="{{ url_for('students_page') }}">{% if rows %}Étudiants{% else %}Importer les étudiants{% endif %}</a>
+        </div>
     </div>
     {% if students_error %}
     <p class="alert alert-error">{{ students_error }}</p>
     {% elif rows %}
+    {% set ncols = 3 if hide_grades else 4 %}
     <table class="table-list">
-        <thead><tr><th>Nom</th><th>Prénom</th><th>Note</th><th>Statut</th></tr></thead>
+        <thead><tr><th>Nom</th><th>Prénom</th>{% if not hide_grades %}<th>Note</th>{% endif %}<th>Statut</th></tr></thead>
         <tbody>
         {% for group in groups %}
         {% if group.team %}
-        <tr class="group-row"><th colspan="4"><a href="{{ url_for('grading_page', kind='equipe', key=group.team) }}">Équipe {{ group.team }}</a></th></tr>
+        <tr class="group-row"><th colspan="{{ ncols }}"><a href="{{ url_for('grading_page', kind='equipe', key=group.team) }}">Équipe {{ group.team }}</a></th></tr>
         {% elif groups|length > 1 %}
-        <tr class="group-row"><th colspan="4">Sans équipe</th></tr>
+        <tr class="group-row"><th colspan="{{ ncols }}">Sans équipe</th></tr>
         {% endif %}
         {% for row in group.rows %}
         <tr>
             <td><a href="{{ url_for('grading_page', kind='etudiant', key=row.student.matricule) }}">{{ row.student.surname }}</a></td>
             <td>{{ row.student.firstname }}</td>
-            <td>{% if row.grade and row.grade.final is not none %}{{ row.grade.final }}{% endif %}</td>
+            {% if not hide_grades %}<td>{% if row.grade and row.grade.final is not none %}{{ row.grade.final }}{% endif %}</td>{% endif %}
             <td>
                 {% if row.error %}<span class="badge badge-error">Fichier invalide</span>
                 {% elif row.grade and row.grade.complete %}<span class="badge badge-ok">Corrigé</span>
