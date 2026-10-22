@@ -435,6 +435,32 @@ def merge_notes(team: Notes, own: Notes) -> Notes:
     )
 
 
+def share_with_team(team: Notes, source: Notes, others: list[Notes], criterion_label: str) -> None:
+    """
+    Met en commun le niveau et le commentaire d'un membre pour un critère : ils passent dans la fiche
+    d'équipe et le membre en hérite. Seuls les membres qui n'avaient rien héritent de la nouvelle valeur ;
+    ceux qui héritaient de l'ancienne la gardent dans leur fiche, et une valeur devenue identique à
+    celle de l'équipe est retirée de leur fiche.
+    """
+    fields = (
+        (Notes.level_for, Notes.set_level, normalize_label),
+        (Notes.comment_for, Notes.set_comment, str.strip),
+    )
+    for get, put, key in fields:
+        value = get(source, criterion_label)
+        if not value:
+            continue
+        previous = get(team, criterion_label)
+        for member in others:
+            own = get(member, criterion_label)
+            if not own and previous and key(previous) != key(value):
+                put(member, criterion_label, previous)
+            elif own and key(own) == key(value):
+                put(member, criterion_label, None)
+        put(team, criterion_label, value)
+        put(source, criterion_label, None)
+
+
 def teams(students: list[Student]) -> dict[str, list[Student]]:
     """Équipes (nom -> membres triés), dans l'ordre alphabétique des noms d'équipe."""
     result: dict[str, list[Student]] = {}

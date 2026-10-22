@@ -1,5 +1,5 @@
 {# Commentaire d'un critère ; attend crit et i. #}
-<label>
+<label id="commentaire-{{ i }}" {% if oob_comment %}hx-swap-oob="true"{% endif %}>
     <span>Commentaire <span id="saved-{{ i }}" class="saved-status">{% if not own.comment_for(crit.label) and team_notes is not none and team_notes.comment_for(crit.label) %}<span class="inherited">hérité de l'équipe</span>{% endif %}</span></span>
     <textarea rows="4" name="texte"
               hx-post="{{ base }}/commentaire"

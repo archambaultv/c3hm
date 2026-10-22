@@ -44,6 +44,10 @@
             <a href="{{ url_for('evaluation_edit') }}">Grille</a>
             <a href="{{ url_for('students_page') }}">Étudiants</a>
             <a href="{{ url_for('exports_page') }}">Exports</a>
+            <form method="post" action="{{ url_for('toggle_hidden_grades') }}" class="inline">
+                <button type="submit" class="masquer {% if hide_grades %}actif{% endif %}"
+                        title="Pour un entretien : cache les notes de l'accueil et les niveaux des coéquipiers.">{% if hide_grades %}Notes masquées{% else %}Masquer les notes{% endif %}</button>
+            </form>
             <span id="sync" class="sync" data-etat="ok" title="Les fichiers sont relus dès qu'ils changent sur le disque."><span class="sync-point"></span><span id="sync-texte">À jour</span></span>
         </nav>
     </div>

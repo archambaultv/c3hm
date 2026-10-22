@@ -34,14 +34,7 @@
 <section class="card">
     <div class="header-row">
         <h2>Correction <span class="muted">{{ graded_count }} / {{ rows|length }}</span></h2>
-        <div>
-            {% if rows %}
-            <form method="post" action="{{ url_for('toggle_hidden_grades') }}" class="inline">
-                <button class="btn" type="submit" title="Utile pendant un entretien : la recherche d'un nom ne révèle pas les notes des autres.">{% if hide_grades %}Afficher les notes{% else %}Masquer les notes{% endif %}</button>
-            </form>
-            {% endif %}
-            <a class="btn" href="{{ url_for('students_page') }}">{% if rows %}Étudiants{% else %}Importer les étudiants{% endif %}</a>
-        </div>
+        <a class="btn" href="{{ url_for('students_page') }}">{% if rows %}Étudiants{% else %}Importer les étudiants{% endif %}</a>
     </div>
     {% if students_error %}
     <p class="alert alert-error">{{ students_error }}</p>

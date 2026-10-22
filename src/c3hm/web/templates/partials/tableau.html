@@ -31,6 +31,12 @@
             {% if selected %}<span class="check">✓</span>{% endif %}
             {% if team_here %}<span class="team-mark" title="Niveau de l'équipe">équipe</span>{% endif %}
             {{ crit.descriptors.get(lvl.label, "")|md }}
+            {% set target = "#grille" %}
+            {% for m, pn in peers if not hide_grades and pn.level_for(crit.label) and evaluation.level(pn.level_for(crit.label)) == lvl %}
+            {% if loop.first %}<div class="peer-marks">{% endif %}
+            {% include "partials/coequipier.html" %}
+            {% if loop.last %}</div>{% endif %}
+            {% endfor %}
         </td>
         {% endfor %}
     </tr>

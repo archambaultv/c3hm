@@ -164,7 +164,39 @@ def test_masquer_les_notes_de_laccueil(graded_client):
     graded_client.post("/notes-masquees")
     page = graded_client.get("/").get_data(as_text=True)
     assert "<th>Note</th>" not in page
-    assert "Afficher les notes" in page
+    assert "Notes masquées" in page
 
     graded_client.post("/notes-masquees")
     assert "<th>Note</th>" in graded_client.get("/").get_data(as_text=True)
+
+
+def test_mettre_en_commun_depuis_un_coequipier(graded_client, graded_workspace):
+    # sur la fiche de Bob, la pastille d'Alice (Tests : Non démontré) met son niveau en commun
+    page = graded_client.get("/etudiant/2222222").get_data(as_text=True)
+    assert "Alice ↑" in page
+
+    reponse = graded_client.post("/etudiant/2222222/mettre-en-commun", data={"critere": "Tests", "source": "1111111"})
+    html = reponse.get_data(as_text=True)
+    assert 'id="grille"' in html and 'id="commentaire-2" hx-swap-oob="true"' in html
+    assert graded_workspace.load_team_notes("A").level_for("Tests") == "Non démontré"
+    assert graded_workspace.load_notes("1111111").levels == {}
+    assert graded_workspace.load_notes("2222222").level_for("Tests") == "Acquis"  # Bob garde sa note
+
+
+def test_le_mode_masque_cache_les_niveaux_des_coequipiers(graded_client):
+    graded_client.post("/notes-masquees")
+    assert "Alice ↑" not in graded_client.get("/etudiant/2222222").get_data(as_text=True)
+    assert "<th>Note</th>" not in graded_client.get("/").get_data(as_text=True)
+
+
+def test_mettre_en_commun_en_liste_ne_remplace_que_la_fiche(graded_client, graded_workspace):
+    evaluation = graded_workspace.load_evaluation()
+    evaluation.layout = "liste"
+    graded_workspace.save_evaluation(evaluation)
+    page = graded_client.get("/etudiant/2222222").get_data(as_text=True)
+    assert "Alice : Non démontré ↑" in page
+
+    html = graded_client.post(
+        "/etudiant/1111111/mettre-en-commun", data={"critere": "Tests", "source": "1111111"}
+    ).get_data(as_text=True)
+    assert 'id="fiche-2"' in html and 'id="grille"' not in html

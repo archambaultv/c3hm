@@ -32,6 +32,7 @@ from c3hm.model import (
     level_color,
     merge_notes,
     round_half_up,
+    share_with_team,
     teams,
 )
 from c3hm.omnivox import OmnivoxError, decode_csv, merge_students, parse_students_csv
@@ -87,7 +88,11 @@ def create_app(workspace: Workspace) -> Flask:
             "level_color": level_color,
             "round_half_up": round_half_up,
             "version": g.get("version", ""),
+            "hide_grades": _grades_hidden(),
         }
+
+    def _grades_hidden() -> bool:
+        return request.cookies.get(HIDE_GRADES_COOKIE) == "1"
 
     # --- synchronisation avec le disque ----------------------------------------
     # Chaque page connaît la version des fichiers qu'elle affiche (empreinte prise avant de les lire).
@@ -165,14 +170,16 @@ def create_app(workspace: Workspace) -> Flask:
             groups=groups,
             students_error=students_error,
             graded_count=graded_count,
-            hide_grades=request.cookies.get(HIDE_GRADES_COOKIE) == "1",
         )
 
     @app.post("/notes-masquees")
     def toggle_hidden_grades():
-        """Masque ou affiche les notes de l'accueil, p. ex. pendant un entretien avec un étudiant."""
-        response = redirect(url_for("index"))
-        if request.cookies.get(HIDE_GRADES_COOKIE) == "1":
+        """
+        Masque ou affiche les notes des autres (accueil, niveaux des coéquipiers), p. ex. pendant un
+        entretien avec un étudiant.
+        """
+        response = redirect(request.referrer or url_for("index"))
+        if _grades_hidden():
             response.delete_cookie(HIDE_GRADES_COOKIE)
         else:
             response.set_cookie(HIDE_GRADES_COOKIE, "1", max_age=365 * 24 * 3600, samesite="Lax")
@@ -407,6 +414,8 @@ def create_app(workspace: Workspace) -> Flask:
         own = _load_own(subject)
         team_notes = workspace.load_team_notes(subject.team) if subject.kind == "etudiant" and subject.team else None
         effective = merge_notes(team_notes, own) if team_notes is not None else own
+        # fiches des autres membres, pour afficher leurs niveaux et les mettre en commun
+        peers = [(m, workspace.load_notes(m.matricule)) for m in subject.members if m.matricule != subject.key]
         return {
             "subject": subject,
             "base": subject.base,
@@ -415,6 +424,7 @@ def create_app(workspace: Workspace) -> Flask:
             "notes": effective,
             "own": own,
             "team_notes": team_notes,
+            "peers": peers,
             "grade": compute_grade(evaluation, effective),
             **extra,
         }
@@ -455,6 +465,31 @@ def create_app(workspace: Workspace) -> Flask:
                 **ctx,
             )
         return render_template("partials/grille.html", oob_total=True, **ctx)
+
+    @app.post("/<any(etudiant, equipe):kind>/<key>/mettre-en-commun")
+    def grading_share(kind: str, key: str):
+        """Met en commun le niveau et le commentaire d'un membre (« source ») dans la fiche de son équipe."""
+        subject = _subject(kind, key)
+        source = next((m for m in subject.members if m.matricule == request.form.get("source")), None)
+        if source is None:
+            abort(400)
+        criterion = request.form.get("critere", "")
+        team = workspace.load_team_notes(subject.team)  # type: ignore[arg-type]
+        members = {m.matricule: workspace.load_notes(m.matricule) for m in subject.members}
+        others = [n for matricule, n in members.items() if matricule != source.matricule]
+        share_with_team(team, members[source.matricule], others, criterion)
+        workspace.save_team_notes(subject.team, team)  # type: ignore[arg-type]
+        for matricule, notes in members.items():
+            workspace.save_notes(matricule, notes)
+        ctx = _notes_context(subject)
+        evaluation = ctx["evaluation"]
+        crit = evaluation.criterion(criterion)
+        if crit is None:
+            abort(400)
+        i = evaluation.criteria.index(crit)
+        # le commentaire du critère peut changer : il est remplacé hors bande
+        template = "partials/fiche.html" if evaluation.layout == "liste" else "partials/grille.html"
+        return render_template(template, crit=crit, i=i, oob_total=True, oob_comment=True, **ctx)
 
     @app.post("/<any(etudiant, equipe):kind>/<key>/commentaire")
     def grading_set_comment(kind: str, key: str):
