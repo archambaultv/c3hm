@@ -2,6 +2,7 @@ from pathlib import Path
 
 import click
 
+from c3hm.storage import Workspace
 from c3hm.web import run_server
 
 
@@ -14,5 +15,8 @@ from c3hm.web import run_server
 def serve_command(directory: Path, port: int, no_browser: bool):
     directory = directory.resolve()
     directory.mkdir(parents=True, exist_ok=True)
+    created = Workspace(directory).create_notes()
+    if created:
+        click.echo(f"{len(created)} fichier(s) de notes créé(s) dans {directory / Workspace.NOTES_DIR}")
     click.echo(f"c3hm : http://localhost:{port}  ({directory})")
     run_server(root=directory, port=port, open_browser=not no_browser)

@@ -4,13 +4,14 @@ Accès aux fichiers d'un dossier d'évaluation (« workspace »).
 Un dossier d'évaluation contient :
 - evaluation.yaml : cours, session, évaluation, échelle, critères
 - etudiants.yaml : liste des étudiants (matricule, prénom, nom, équipe)
-- notes/<Nom>_<Prénom>_<matricule>.yaml : par critère (niveau, commentaire, axe de progression),
-  commentaire général et note ajustée d'un étudiant
+- notes/<Nom>_<Prénom>_<matricule>.yaml : par critère (niveau, commentaire), commentaire général
+  et note ajustée d'un étudiant
 - notes/equipes/<équipe>.yaml : niveaux et commentaires d'une équipe, hérités par ses membres
 """
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,20 @@ class Workspace:
 
     def __init__(self, root: Path | str):
         self.root = Path(root).resolve()
+
+    def fingerprint(self) -> str:
+        """Empreinte des fichiers YAML : change dès qu'un fichier est modifié, ajouté ou supprimé."""
+        notes_dir = self.root / self.NOTES_DIR
+        paths = [self.evaluation_path, self.students_path]
+        paths += sorted(notes_dir.glob("*.yaml")) + sorted((notes_dir / self.TEAMS_DIR).glob("*.yaml"))
+        digest = hashlib.sha1()
+        for path in paths:
+            try:
+                content = path.read_bytes()
+            except OSError:
+                continue  # absent, ou supprimé entre-temps
+            digest.update(path.relative_to(self.root).as_posix().encode() + b"\0" + content + b"\0")
+        return digest.hexdigest()[:16]
 
     # --- evaluation.yaml -----------------------------------------------------
 
@@ -133,6 +148,14 @@ class Workspace:
 
     # --- notes/<Nom>_<Prénom>_<matricule>.yaml -------------------------------
 
+    def _criteria_labels(self) -> list[str]:
+        """Critères de l'évaluation, écrits dans chaque fichier de notes ; aucun si evaluation.yaml est illisible."""
+        try:
+            evaluation = self.load_evaluation()
+        except WorkspaceError:
+            return []
+        return [c.label for c in evaluation.criteria if c.label]
+
     def _notes_filename(self, matricule: str) -> str:
         """Nom attendu d'après etudiants.yaml, comme la rétroaction ; le matricule seul si l'étudiant est inconnu."""
         try:
@@ -169,7 +192,7 @@ class Workspace:
         path = self.root / self.NOTES_DIR / self._notes_filename(matricule)
         old = self._existing_notes_path(matricule)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(dump_yaml(notes.to_dict()), encoding="utf-8")
+        path.write_text(dump_yaml(notes.to_dict(self._criteria_labels())), encoding="utf-8")
         if old is not None and old != path:
             old.unlink()
 
@@ -194,7 +217,7 @@ class Workspace:
     def save_team_notes(self, team: str, notes: Notes) -> None:
         path = self.team_notes_path(team)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(dump_yaml(notes.to_dict()), encoding="utf-8")
+        path.write_text(dump_yaml(notes.to_dict(self._criteria_labels())), encoding="utf-8")
 
     def team_notes_names(self) -> list[str]:
         """Équipes ayant un fichier de notes."""
@@ -209,3 +232,46 @@ class Workspace:
         if not notes_dir.is_dir():
             return []
         return sorted(_matricule_of(p.stem) for p in notes_dir.glob("*.yaml"))
+
+    def create_notes(self, force: bool = False) -> list[Path]:
+        """
+        Crée un fichier de notes vide (tous les critères, valeurs à null) pour chaque étudiant et chaque
+        équipe d'etudiants.yaml qui n'en a pas, afin de pouvoir les remplir directement dans un éditeur.
+        Les fichiers existants ne sont pas modifiés, sauf avec force : ils sont alors tous remplacés par des
+        fichiers vides. Rien n'est écrit tant que l'évaluation n'a pas de critères ou que la liste d'étudiants
+        est illisible. Retourne les fichiers écrits.
+        """
+        labels = self._criteria_labels()
+        if not labels:
+            return []
+        try:
+            students = self.load_students()
+        except WorkspaceError:
+            return []
+        content = dump_yaml(Notes().to_dict(labels))
+        notes_dir = self.root / self.NOTES_DIR
+        existing: dict[str, Path] = {}
+        for path in sorted(notes_dir.glob("*.yaml")):
+            existing.setdefault(_matricule_of(path.stem), path)
+        written = []
+        for student in students:
+            old = existing.get(student.matricule)
+            if old is not None and not force:
+                continue
+            path = notes_dir / f"{safe_filename(student)}.yaml"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            if old is not None and old != path:
+                old.unlink()  # ancien nom
+            written.append(path)
+        for team in sorted({s.team for s in students if s.team}):
+            try:
+                path = self.team_notes_path(team)
+            except WorkspaceError:
+                continue  # nom d'équipe invalide : signalé ailleurs
+            if path.exists() and not force:
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            written.append(path)
+        return written

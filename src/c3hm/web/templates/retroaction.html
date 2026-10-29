@@ -11,6 +11,13 @@
 <h1>{{ student.fullname() }}</h1>
 <p class="sub">{{ evaluation.title }} — {{ evaluation.course }} — {{ evaluation.session }}</p>
 
+{% if notes.comment.strip() %}
+<div class="comment">
+    <h2>Commentaire général</h2>
+    <div class="texte">{{ notes.comment|md }}</div>
+</div>
+{% endif %}
+
 {% if evaluation.layout == "liste" %}
 {% for crit in evaluation.criteria %}
 {% set res = grade.result_for(crit) %}
@@ -19,9 +26,6 @@
     <p class="obtenu">Niveau obtenu : {% if res.level %}<span class="pastille" style="background: {{ level_color(res.level) }}">{{ res.level.label }} ({{ res.level.percentage }} %)</span>{% else %}—{% endif %}</p>
     {% if notes.comment_for(crit.label) %}
     <div class="remarque"><strong>Commentaire</strong><div class="texte">{{ notes.comment_for(crit.label)|md }}</div></div>
-    {% endif %}
-    {% if notes.progress_for(crit.label) %}
-    <div class="remarque"><strong>Axe de progression</strong><div class="texte">{{ notes.progress_for(crit.label)|md }}</div></div>
     {% endif %}
 </section>
 {% endfor %}
@@ -51,24 +55,16 @@
 {% endif %}
 
 {% set commented = [] %}
-{% for crit in evaluation.criteria %}{% if notes.comment_for(crit.label) or notes.progress_for(crit.label) %}{% set _ = commented.append(crit) %}{% endif %}{% endfor %}
+{% for crit in evaluation.criteria %}{% if notes.comment_for(crit.label) %}{% set _ = commented.append(crit) %}{% endif %}{% endfor %}
 {% if commented and evaluation.layout != "liste" %}
 <div class="comment">
     <h2>Commentaires par critère</h2>
     {% for crit in commented %}
     <div class="comment-item">
         <strong>{{ crit.label }}</strong>
-        {% if notes.comment_for(crit.label) %}<div class="texte">{{ notes.comment_for(crit.label)|md }}</div>{% endif %}
-        {% if notes.progress_for(crit.label) %}<em>Axe de progression</em><div class="texte">{{ notes.progress_for(crit.label)|md }}</div>{% endif %}
+        <div class="texte">{{ notes.comment_for(crit.label)|md }}</div>
     </div>
     {% endfor %}
-</div>
-{% endif %}
-
-{% if notes.comment.strip() %}
-<div class="comment">
-    <h2>Commentaire général</h2>
-    <div class="texte">{{ notes.comment|md }}</div>
 </div>
 {% endif %}
 

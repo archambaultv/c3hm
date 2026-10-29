@@ -1,6 +1,10 @@
-{# Mention d'héritage d'équipe, commune aux deux affichages. #}
+{# Mention d'héritage d'équipe et mise en commun, communes aux deux affichages. #}
+{% set target = "#fiche-%d"|format(i) if evaluation.layout == "liste" else "#grille" %}
 {% if inherited %}
 <div class="inherited">hérité de l'équipe</div>
 {% elif own_level and team_notes is not none and team_notes.level_for(crit.label) %}
-<button type="button" class="link" hx-post="{{ base }}/niveau" hx-vals='{{ {"critere": crit.label, "niveau": ""}|tojson }}' hx-target="{{ "#fiche-%d"|format(i) if evaluation.layout == "liste" else "#grille" }}" hx-swap="outerHTML">↩ reprendre l'équipe</button>
+<div><button type="button" class="link" hx-post="{{ base }}/niveau" hx-vals='{{ {"critere": crit.label, "niveau": ""}|tojson }}' hx-target="{{ target }}" hx-swap="outerHTML">↩ reprendre l'équipe</button></div>
+{% endif %}
+{% if team_notes is not none and (own_level or own.comment_for(crit.label)) %}
+<div><button type="button" class="link" title="Le niveau et le commentaire passent dans la fiche d'équipe ; les membres qui n'avaient rien en héritent." hx-post="{{ base }}/mettre-en-commun" hx-vals='{{ {"critere": crit.label, "source": subject.key}|tojson }}' hx-target="{{ target }}" hx-swap="outerHTML">↑ mettre en commun</button></div>
 {% endif %}

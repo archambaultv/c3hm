@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
@@ -56,11 +57,12 @@ class Criterion:
     weight: Number | str
     descriptors: dict[str, str] = field(default_factory=dict)  # étiquette de niveau -> texte
 
-    def to_dict(self) -> dict:
-        d: dict[str, Any] = {"critère": self.label, "pondération": self.weight}
-        if self.descriptors:
-            d["descripteurs"] = dict(self.descriptors)
-        return d
+    def to_dict(self, level_labels: Sequence[str] = ()) -> dict:
+        """Un descripteur par niveau de l'échelle, null si absent, pour faciliter la modification à la main."""
+        descriptors = {label: _get_normalized(self.descriptors, label) for label in level_labels}
+        known = {normalize_label(label) for label in level_labels}
+        descriptors |= {label: text for label, text in self.descriptors.items() if normalize_label(label) not in known}
+        return {"critère": self.label, "pondération": self.weight, "descripteurs": descriptors}
 
     @classmethod
     def from_dict(cls, data: Any) -> Criterion:
@@ -72,7 +74,7 @@ class Criterion:
         return cls(
             label=str(data.get("critère", "") or ""),
             weight=data.get("pondération", ""),
-            descriptors={str(k): str(v) for k, v in descriptors.items()},
+            descriptors={str(k): str(v) for k, v in descriptors.items() if v not in (None, "")},
         )
 
 
@@ -183,7 +185,7 @@ class Evaluation:
             "évaluation": self.title,
             "affichage": self.layout,
             "échelle": [lvl.to_dict() for lvl in self.scale],
-            "critères": [c.to_dict() for c in self.criteria],
+            "critères": [c.to_dict([lvl.label for lvl in self.scale if lvl.label]) for c in self.criteria],
         }
 
     @classmethod
@@ -245,10 +247,7 @@ class Student:
         return " ".join(p.strip() for p in parts if p.strip())
 
     def to_dict(self) -> dict:
-        d: dict[str, Any] = {"matricule": self.matricule, "prénom": self.firstname, "nom": self.surname}
-        if self.team:
-            d["équipe"] = self.team
-        return d
+        return {"matricule": self.matricule, "prénom": self.firstname, "nom": self.surname, "équipe": self.team}
 
     @classmethod
     def from_dict(cls, data: Any) -> Student:
@@ -293,13 +292,12 @@ def _set_normalized(mapping: dict[str, str], key: str, value: str | None) -> Non
 @dataclass
 class Notes:
     """
-    Notes d'un étudiant (ou d'une équipe) : niveau, commentaire et axe de progression par critère,
-    commentaire global, note ajustée.
+    Notes d'un étudiant (ou d'une équipe) : niveau et commentaire par critère, commentaire global,
+    note ajustée.
     """
 
     levels: dict[str, str] = field(default_factory=dict)  # critère -> niveau
     comments: dict[str, str] = field(default_factory=dict)  # critère -> commentaire
-    progress: dict[str, str] = field(default_factory=dict)  # critère -> axe de progression
     comment: str = ""
     override: Number | str | None = None  # note ajustée
 
@@ -309,35 +307,32 @@ class Notes:
     def comment_for(self, criterion_label: str) -> str:
         return _get_normalized(self.comments, criterion_label) or ""
 
-    def progress_for(self, criterion_label: str) -> str:
-        return _get_normalized(self.progress, criterion_label) or ""
-
     def set_level(self, criterion_label: str, level_label: str | None) -> None:
         _set_normalized(self.levels, criterion_label, level_label)
 
     def set_comment(self, criterion_label: str, text: str | None) -> None:
         _set_normalized(self.comments, criterion_label, (text or "").strip() or None)
 
-    def set_progress(self, criterion_label: str, text: str | None) -> None:
-        _set_normalized(self.progress, criterion_label, (text or "").strip() or None)
-
     def has_override(self) -> bool:
         return _is_number(self.override)
 
-    def to_dict(self) -> dict:
-        criteria: dict[str, dict[str, str]] = {}
-        for crit, level in self.levels.items():
-            criteria.setdefault(crit, {})["niveau"] = level
-        for crit, text in self.comments.items():
-            criteria.setdefault(crit, {})["commentaire"] = text
-        for crit, text in self.progress.items():
-            criteria.setdefault(crit, {})["axe de progression"] = text
-        d: dict[str, Any] = {"critères": criteria}
-        if self.comment.strip():
-            d["commentaire"] = self.comment
-        if self.override not in (None, ""):
-            d["note ajustée"] = self.override
-        return d
+    def to_dict(self, criteria_labels: Sequence[str] = ()) -> dict:
+        """
+        Toutes les clés sont présentes, null si non applicable, pour faciliter la modification à la main :
+        les critères de criteria_labels (ceux de l'évaluation) d'abord, puis ceux qui n'y sont pas.
+        """
+        labels = list(criteria_labels)
+        for crit in [*self.levels, *self.comments]:
+            if all(normalize_label(crit) != normalize_label(label) for label in labels):
+                labels.append(crit)
+        criteria = {
+            label: {"niveau": self.level_for(label), "commentaire": self.comment_for(label) or None} for label in labels
+        }
+        return {
+            "critères": criteria,
+            "commentaire": self.comment if self.comment.strip() else None,
+            "note ajustée": None if self.override in (None, "") else self.override,
+        }
 
     @classmethod
     def from_dict(cls, data: Any) -> Notes:
@@ -359,9 +354,8 @@ class Notes:
 
         levels: dict[str, str] = {}
         comments: dict[str, str] = {}
-        progress: dict[str, str] = {}
         for crit, fields in entries:
-            for key, target in (("niveau", levels), ("commentaire", comments), ("axe de progression", progress)):
+            for key, target in (("niveau", levels), ("commentaire", comments)):
                 value = fields.get(key)
                 if value not in (None, ""):
                     target[str(crit)] = str(value)
@@ -369,7 +363,6 @@ class Notes:
         return cls(
             levels=levels,
             comments=comments,
-            progress=progress,
             comment=str(data.get("commentaire") or ""),
             override=None if override in (None, "") else override,
         )
@@ -423,9 +416,6 @@ def invalid_references(evaluation: Evaluation, notes: Notes) -> list[str]:
     for crit_label in notes.comments:
         if evaluation.criterion(crit_label) is None:
             problems.append(f"critère inconnu « {crit_label} » (commentaire)")
-    for crit_label in notes.progress:
-        if evaluation.criterion(crit_label) is None:
-            problems.append(f"critère inconnu « {crit_label} » (axe de progression)")
     return problems
 
 
@@ -437,16 +427,38 @@ def merge_notes(team: Notes, own: Notes) -> Notes:
     comments = dict(team.comments)
     for k, v in own.comments.items():
         _set_normalized(comments, k, v)
-    progress = dict(team.progress)
-    for k, v in own.progress.items():
-        _set_normalized(progress, k, v)
     return Notes(
         levels=levels,
         comments=comments,
-        progress=progress,
         comment=own.comment if own.comment.strip() else team.comment,
         override=own.override,
     )
+
+
+def share_with_team(team: Notes, source: Notes, others: list[Notes], criterion_label: str) -> None:
+    """
+    Met en commun le niveau et le commentaire d'un membre pour un critère : ils passent dans la fiche
+    d'équipe et le membre en hérite. Seuls les membres qui n'avaient rien héritent de la nouvelle valeur ;
+    ceux qui héritaient de l'ancienne la gardent dans leur fiche, et une valeur devenue identique à
+    celle de l'équipe est retirée de leur fiche.
+    """
+    fields = (
+        (Notes.level_for, Notes.set_level, normalize_label),
+        (Notes.comment_for, Notes.set_comment, str.strip),
+    )
+    for get, put, key in fields:
+        value = get(source, criterion_label)
+        if not value:
+            continue
+        previous = get(team, criterion_label)
+        for member in others:
+            own = get(member, criterion_label)
+            if not own and previous and key(previous) != key(value):
+                put(member, criterion_label, previous)
+            elif own and key(own) == key(value):
+                put(member, criterion_label, None)
+        put(team, criterion_label, value)
+        put(source, criterion_label, None)
 
 
 def teams(students: list[Student]) -> dict[str, list[Student]]:

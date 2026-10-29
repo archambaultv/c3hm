@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Timer
 
-from flask import Flask, abort, redirect, render_template, request, url_for
+from flask import Flask, abort, g, redirect, render_template, request, url_for
 
 from c3hm.export import (
     ExportError,
@@ -32,10 +32,11 @@ from c3hm.model import (
     level_color,
     merge_notes,
     round_half_up,
+    share_with_team,
     teams,
 )
 from c3hm.omnivox import OmnivoxError, decode_csv, merge_students, parse_students_csv
-from c3hm.storage import Workspace, WorkspaceError, dump_yaml
+from c3hm.storage import Workspace, WorkspaceError
 from c3hm.web.forms import apply_action, parse_evaluation_form, parse_number
 
 
@@ -44,6 +45,10 @@ def run_server(root: Path, port: int, open_browser: bool = True) -> None:
     if open_browser:
         Timer(1.0, lambda: webbrowser.open(f"http://localhost:{port}")).start()
     app.run(host="localhost", port=port, debug=False)
+
+
+VERSION_HEADER = "X-C3hm-Version"
+HIDE_GRADES_COOKIE = "c3hm-notes-masquees"
 
 
 @dataclass
@@ -78,7 +83,43 @@ def create_app(workspace: Workspace) -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"workspace": workspace, "level_color": level_color, "round_half_up": round_half_up}
+        return {
+            "workspace": workspace,
+            "level_color": level_color,
+            "round_half_up": round_half_up,
+            "version": g.get("version", ""),
+            "hide_grades": _grades_hidden(),
+        }
+
+    def _grades_hidden() -> bool:
+        return request.cookies.get(HIDE_GRADES_COOKIE) == "1"
+
+    # --- synchronisation avec le disque ----------------------------------------
+    # Chaque page connaît la version des fichiers qu'elle affiche (empreinte prise avant de les lire).
+    # Une écriture basée sur une version périmée est refusée : elle écraserait une modification
+    # faite directement dans les fichiers. Une écriture acceptée renvoie la nouvelle version.
+    # Les fichiers de notes manquants (étudiant ou équipe ajouté) sont d'abord créés.
+
+    @app.before_request
+    def check_version():
+        if request.endpoint == "static":
+            return None
+        workspace.create_notes()
+        g.version = workspace.fingerprint()
+        sent = request.headers.get(VERSION_HEADER)
+        if request.method == "POST" and sent and sent != g.version:
+            return "Des fichiers ont été modifiés sur le disque.", 409
+        return None
+
+    @app.after_request
+    def send_version(response):
+        if request.method == "POST" and response.status_code == 200:
+            response.headers[VERSION_HEADER] = workspace.fingerprint()
+        return response
+
+    @app.get("/etat")
+    def state():
+        return {"version": g.version}
 
     app.jinja_env.filters["md"] = render_markdown
 
@@ -130,6 +171,19 @@ def create_app(workspace: Workspace) -> Flask:
             students_error=students_error,
             graded_count=graded_count,
         )
+
+    @app.post("/notes-masquees")
+    def toggle_hidden_grades():
+        """
+        Masque ou affiche les notes des autres (accueil, niveaux des coéquipiers), p. ex. pendant un
+        entretien avec un étudiant.
+        """
+        response = redirect(request.referrer or url_for("index"))
+        if _grades_hidden():
+            response.delete_cookie(HIDE_GRADES_COOKIE)
+        else:
+            response.set_cookie(HIDE_GRADES_COOKIE, "1", max_age=365 * 24 * 3600, samesite="Lax")
+        return response
 
     # --- évaluation ----------------------------------------------------------
 
@@ -360,6 +414,8 @@ def create_app(workspace: Workspace) -> Flask:
         own = _load_own(subject)
         team_notes = workspace.load_team_notes(subject.team) if subject.kind == "etudiant" and subject.team else None
         effective = merge_notes(team_notes, own) if team_notes is not None else own
+        # fiches des autres membres, pour afficher leurs niveaux et les mettre en commun
+        peers = [(m, workspace.load_notes(m.matricule)) for m in subject.members if m.matricule != subject.key]
         return {
             "subject": subject,
             "base": subject.base,
@@ -368,6 +424,7 @@ def create_app(workspace: Workspace) -> Flask:
             "notes": effective,
             "own": own,
             "team_notes": team_notes,
+            "peers": peers,
             "grade": compute_grade(evaluation, effective),
             **extra,
         }
@@ -388,11 +445,6 @@ def create_app(workspace: Workspace) -> Flask:
             return render_template("notes_error.html", subject=subject, error=str(e))
         return render_template("notes.html", **ctx)
 
-    @app.get("/<any(etudiant, equipe):kind>/<key>/notes")
-    def grading_refresh(kind: str, key: str):
-        """Relit les fichiers : utile après une modification à la main."""
-        return render_template("partials/notes.html", **_notes_context(_subject(kind, key)))
-
     @app.post("/<any(etudiant, equipe):kind>/<key>/niveau")
     def grading_set_level(kind: str, key: str):
         subject = _subject(kind, key)
@@ -412,7 +464,32 @@ def create_app(workspace: Workspace) -> Flask:
                 oob_total=True,
                 **ctx,
             )
-        return render_template("partials/grille.html", **ctx)
+        return render_template("partials/grille.html", oob_total=True, **ctx)
+
+    @app.post("/<any(etudiant, equipe):kind>/<key>/mettre-en-commun")
+    def grading_share(kind: str, key: str):
+        """Met en commun le niveau et le commentaire d'un membre (« source ») dans la fiche de son équipe."""
+        subject = _subject(kind, key)
+        source = next((m for m in subject.members if m.matricule == request.form.get("source")), None)
+        if source is None:
+            abort(400)
+        criterion = request.form.get("critere", "")
+        team = workspace.load_team_notes(subject.team)  # type: ignore[arg-type]
+        members = {m.matricule: workspace.load_notes(m.matricule) for m in subject.members}
+        others = [n for matricule, n in members.items() if matricule != source.matricule]
+        share_with_team(team, members[source.matricule], others, criterion)
+        workspace.save_team_notes(subject.team, team)  # type: ignore[arg-type]
+        for matricule, notes in members.items():
+            workspace.save_notes(matricule, notes)
+        ctx = _notes_context(subject)
+        evaluation = ctx["evaluation"]
+        crit = evaluation.criterion(criterion)
+        if crit is None:
+            abort(400)
+        i = evaluation.criteria.index(crit)
+        # le commentaire du critère peut changer : il est remplacé hors bande
+        template = "partials/fiche.html" if evaluation.layout == "liste" else "partials/grille.html"
+        return render_template(template, crit=crit, i=i, oob_total=True, oob_comment=True, **ctx)
 
     @app.post("/<any(etudiant, equipe):kind>/<key>/commentaire")
     def grading_set_comment(kind: str, key: str):
@@ -420,10 +497,7 @@ def create_app(workspace: Workspace) -> Flask:
         own = _load_own(subject)
         text = request.form.get("texte", "")
         criterion = request.form.get("critere")
-        progress = request.form.get("champ") == "axe"
-        if criterion and progress:
-            own.set_progress(criterion, text)
-        elif criterion:
+        if criterion:
             own.set_comment(criterion, text)
         else:
             own.comment = text.strip()
@@ -433,7 +507,7 @@ def create_app(workspace: Workspace) -> Flask:
         if team_notes is None:
             inherited = False
         elif criterion:
-            inherited = bool(team_notes.progress_for(criterion) if progress else team_notes.comment_for(criterion))
+            inherited = bool(team_notes.comment_for(criterion))
         else:
             inherited = bool(team_notes.comment.strip())
         # le commentaire général conditionne l'avertissement du total
@@ -472,5 +546,4 @@ def _form_context(
         "errors": errors,
         "saved": saved,
         "affected": affected or [],
-        "yaml_text": dump_yaml(evaluation.to_dict()),
     }

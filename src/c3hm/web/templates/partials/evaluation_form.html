@@ -1,6 +1,6 @@
 {# Formulaire complet de l'évaluation. Les boutons de structure repostent le formulaire vers /evaluation/form. #}
 {% set repost = 'hx-post="' ~ url_for('evaluation_form') ~ '" hx-target="#evaluation-form" hx-swap="outerHTML"' %}
-<form id="evaluation-form" method="post" action="{{ url_for('evaluation_save') }}"
+<form id="evaluation-form" method="post" action="{{ url_for('evaluation_save') }}" data-brouillon{% if intact or saved %} data-intact{% endif %}
       hx-post="{{ url_for('evaluation_save') }}" hx-target="this" hx-swap="outerHTML">
 
     {% if saved %}<div class="alert alert-ok">Enregistré dans evaluation.yaml.</div>{% endif %}
@@ -16,7 +16,7 @@
         Les niveaux ou critères renommés ou supprimés ne seront plus reconnus dans leurs notes.
         <div class="actions">
             <button type="submit" name="confirmer" value="1" class="btn btn-primary">Enregistrer quand même</button>
-            <a class="btn" href="{{ url_for('evaluation_edit') }}">Annuler</a>
+            <a class="btn" href="{{ url_for('evaluation_edit') }}" data-abandonner>Annuler</a>
         </div>
     </div>
     {% endif %}
@@ -92,12 +92,6 @@
     </fieldset>
 
     <div class="actions sticky-actions">
-        <button type="submit" class="btn btn-primary">Enregistrer</button>
-        <a class="btn" href="{{ url_for('evaluation_edit') }}">Recharger depuis le fichier</a>
+        <button type="submit" class="btn btn-primary" data-enregistrer {% if intact or saved %}disabled{% endif %}>{% if intact or saved %}✓ Enregistré{% else %}Enregistrer{% endif %}</button>
     </div>
-
-    <details class="yaml-preview">
-        <summary>Aperçu YAML</summary>
-        <pre class="yaml">{{ yaml_text }}</pre>
-    </details>
 </form>

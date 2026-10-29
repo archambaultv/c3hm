@@ -1,0 +1,6 @@
+{# Niveau d'un coéquipier (m, ses notes pn) ; un clic le met en commun avec son commentaire. Attend crit et target. #}
+<button type="button" class="peer-mark"
+        title="Niveau de {{ m.fullname() }}. Cliquer pour le mettre en commun dans l'équipe, avec son commentaire."
+        hx-post="{{ base }}/mettre-en-commun"
+        hx-vals='{{ {"critere": crit.label, "source": m.matricule}|tojson }}'
+        hx-trigger="click consume" hx-target="{{ target }}" hx-swap="outerHTML">{{ m.firstname }}{% if show_level %} : {{ pn.level_for(crit.label) }}{% endif %} ↑</button>

@@ -6,7 +6,7 @@
 {% if error %}
 <div class="alert alert-error">
     <strong>Impossible de lire evaluation.yaml.</strong> {{ error }}
-    <p>Corrigez le fichier dans votre éditeur, puis rechargez cette page.</p>
+    <p>Corrigez le fichier dans votre éditeur.</p>
 </div>
 {% elif evaluation %}
 <section class="card">
@@ -39,20 +39,21 @@
     {% if students_error %}
     <p class="alert alert-error">{{ students_error }}</p>
     {% elif rows %}
+    {% set ncols = 3 if hide_grades else 4 %}
     <table class="table-list">
-        <thead><tr><th>Nom</th><th>Prénom</th><th>Note</th><th>Statut</th></tr></thead>
+        <thead><tr><th>Nom</th><th>Prénom</th>{% if not hide_grades %}<th>Note</th>{% endif %}<th>Statut</th></tr></thead>
         <tbody>
         {% for group in groups %}
         {% if group.team %}
-        <tr class="group-row"><th colspan="4"><a href="{{ url_for('grading_page', kind='equipe', key=group.team) }}">Équipe {{ group.team }}</a></th></tr>
+        <tr class="group-row"><th colspan="{{ ncols }}"><a href="{{ url_for('grading_page', kind='equipe', key=group.team) }}">Équipe {{ group.team }}</a></th></tr>
         {% elif groups|length > 1 %}
-        <tr class="group-row"><th colspan="4">Sans équipe</th></tr>
+        <tr class="group-row"><th colspan="{{ ncols }}">Sans équipe</th></tr>
         {% endif %}
         {% for row in group.rows %}
         <tr>
             <td><a href="{{ url_for('grading_page', kind='etudiant', key=row.student.matricule) }}">{{ row.student.surname }}</a></td>
             <td>{{ row.student.firstname }}</td>
-            <td>{% if row.grade and row.grade.final is not none %}{{ row.grade.final }}{% endif %}</td>
+            {% if not hide_grades %}<td>{% if row.grade and row.grade.final is not none %}{{ row.grade.final }}{% endif %}</td>{% endif %}
             <td>
                 {% if row.error %}<span class="badge badge-error">Fichier invalide</span>
                 {% elif row.grade and row.grade.complete %}<span class="badge badge-ok">Corrigé</span>

@@ -27,6 +27,13 @@
         </button>
         {% endfor %}
     </div>
+    {% set target = "#fiche-%d"|format(i) %}
+    {% set show_level = true %}
+    {% for m, pn in peers if not hide_grades and pn.level_for(crit.label) %}
+    {% if loop.first %}<div class="peer-marks peer-row"><span class="muted small">Coéquipiers</span>{% endif %}
+    {% include "partials/coequipier.html" %}
+    {% if loop.last %}</div>{% endif %}
+    {% endfor %}
     {% for lvl in evaluation.scale %}
     {% if crit.descriptors.get(lvl.label) %}
     <div class="descripteur {% if res.level == lvl %}selected{% endif %}">
@@ -37,3 +44,4 @@
     {% endfor %}
 </div>
 {% if oob_total %}{% include "partials/total.html" %}{% endif %}
+{% if oob_comment %}{% include "partials/commentaires_critere.html" %}{% endif %}

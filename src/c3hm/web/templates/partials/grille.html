@@ -1,9 +1,10 @@
-{# Conteneur commun aux deux affichages : total puis tableau ou fiches. #}
+{# Conteneur commun aux deux affichages : tableau ou fiches. Le total est dans la synthèse, mis à jour hors bande. #}
 <div id="grille">
-    {% include "partials/total.html" %}
     {% if evaluation.layout == "liste" %}
     {% include "partials/fiches.html" %}
     {% else %}
     {% include "partials/tableau.html" %}
     {% endif %}
 </div>
+{% if oob_total %}{% include "partials/total.html" %}{% endif %}
+{% if oob_comment %}{% include "partials/commentaires_critere.html" %}{% endif %}

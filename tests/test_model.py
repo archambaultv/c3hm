@@ -2,7 +2,7 @@
 
 import pytest
 
-from c3hm.model import Notes, compute_grade, invalid_references, merge_notes
+from c3hm.model import Notes, compute_grade, invalid_references, merge_notes, share_with_team
 
 
 def test_note_calculee_et_arrondie(evaluation):
@@ -34,15 +34,13 @@ def test_heritage_dequipe():
     equipe = Notes(
         levels={"A": "Acquis", "B": "Avancé"},
         comments={"A": "équipe"},
-        progress={"A": "axe équipe", "B": "axe équipe"},
         comment="général équipe",
     )
-    perso = Notes(levels={"B": "Non démontré"}, comments={"B": "perso"}, progress={"B": "axe perso"}, override=50)
+    perso = Notes(levels={"B": "Non démontré"}, comments={"B": "perso"}, override=50)
     fusion = merge_notes(equipe, perso)
     assert fusion.level_for("A") == "Acquis"  # hérité
     assert fusion.level_for("B") == "Non démontré"  # remplacé
     assert (fusion.comment_for("A"), fusion.comment_for("B")) == ("équipe", "perso")
-    assert (fusion.progress_for("A"), fusion.progress_for("B")) == ("axe équipe", "axe perso")
     assert fusion.comment == "général équipe"  # pas de commentaire personnel
     assert fusion.override == 50  # jamais hérité
 
@@ -60,3 +58,28 @@ def test_renommer_un_critere_ou_un_niveau_invalide_les_notes(evaluation):
     assert invalid_references(evaluation, notes) == []
     evaluation.scale[1].label = "Réussi"
     assert invalid_references(evaluation, notes)
+
+
+def test_mettre_en_commun_remplit_une_equipe_vide():
+    equipe = Notes()
+    source = Notes(levels={"Tests": "Acquis"}, comments={"Tests": "Bien."})
+    sans_note = Notes()
+    pareil = Notes(levels={"Tests": "Acquis"})
+    share_with_team(equipe, source, [sans_note, pareil], "Tests")
+
+    assert equipe.level_for("Tests") == "Acquis" and equipe.comment_for("Tests") == "Bien."
+    assert source.levels == {} and source.comments == {}
+    assert pareil.levels == {}  # identique à l'équipe : hérite désormais
+    assert merge_notes(equipe, sans_note).level_for("Tests") == "Acquis"  # n'avait rien : hérite
+
+
+def test_mettre_en_commun_ne_change_pas_la_note_des_heritiers():
+    equipe = Notes(levels={"Tests": "Avancé"}, comments={"Tests": "Ancien."})
+    source = Notes(levels={"Tests": "Acquis"})
+    heritier = Notes()
+    share_with_team(equipe, source, [heritier], "Tests")
+
+    assert equipe.level_for("Tests") == "Acquis"
+    assert equipe.comment_for("Tests") == "Ancien."  # la source n'avait pas de commentaire
+    assert heritier.level_for("Tests") == "Avancé"  # garde ce dont il héritait
+    assert heritier.comments == {}
